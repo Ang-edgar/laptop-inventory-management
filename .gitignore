@@ -2,6 +2,9 @@
 *.db
 data/
 
+# Screenshots (keep local but don't distribute)
+screenshots/
+
 # Python
 __pycache__/
 *.py[cod]
