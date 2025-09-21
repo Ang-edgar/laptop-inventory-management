@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Spare Part</title>
+    {% extends "base.html" %}
+    {% block title %}Add Spare Part{% endblock %}
+    {% block content %}
+    <div class="card" style="max-width: 500px; margin: 2rem auto;">
+        <div class="card-header">
+            <h2>Add Spare Part</h2>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <div class="form-group">
+                    <label>Part Type:</label>
+                    <select name="part_type" id="part_type" onchange="toggleFields()" class="form-control">
+                        <option value="Storage">Storage</option>
+                        <option value="RAM">RAM</option>
+                    </select>
+                </div>
+                <div id="storage_fields" class="form-group" style="display:none;">
+                    <label>Storage Type:</label>
+                    <select name="storage_type" class="form-control">
+                        <option value="">Select</option>
+                        <option value="2.5&quot; HDD">2.5" HDD</option>
+                        <option value="2.5&quot; SSD">2.5" SSD</option>
+                        <option value="M.2 NVMe">M.2 NVMe</option>
+                        <option value="M.2 SATA">M.2 SATA</option>
+                    </select>
+                </div>
+                <div id="ram_fields" class="form-group" style="display:none;">
+                    <label>RAM Type:</label>
+                    <select name="ram_type" class="form-control">
+                        <option value="">Select</option>
+                        <option value="DDR3">DDR3</option>
+                        <option value="DDR4">DDR4</option>
+                    </select>
+                    <label>RAM Speed:</label>
+                    <input type="text" name="ram_speed" class="form-control" placeholder="e.g. 1600MHz">
+                </div>
+                <div class="form-group">
+                    <label>Capacity:</label>
+                    <input type="text" name="capacity" required class="form-control" placeholder="e.g. 8GB, 256GB">
+                </div>
+                <div class="form-group">
+                    <label>Quantity:</label>
+                    <input type="number" name="quantity" value="1" min="1" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Notes:</label>
+                    <input type="text" name="notes" class="form-control">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Add Spare Part</button>
+            </form>
+            <a href="{{ url_for('spareparts') }}" class="btn btn-outline" style="width:100%;margin-top:1rem;">Back to Spare Parts</a>
+        </div>
+    </div>
+    <script>
+        function toggleFields() {
+            var partType = document.getElementById('part_type').value;
+            document.getElementById('storage_fields').style.display = partType === 'Storage' ? 'block' : 'none';
+            document.getElementById('ram_fields').style.display = partType === 'RAM' ? 'block' : 'none';
+        }
+        window.onload = toggleFields;
+    </script>
+    {% endblock %}
+</head>
+<body>
+</body>
+</html>

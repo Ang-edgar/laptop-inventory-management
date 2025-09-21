@@ -1,0 +1,14 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  web:
+    build: .
+    image: laptop_inventory_app:v1.31
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DB_PATH=/app/data/laptops.db
+    restart: unless-stopped

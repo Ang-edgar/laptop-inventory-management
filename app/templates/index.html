@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Laptop Inventory{% endblock %}
+{% block content %}
+<div class="header">
+    <h2>Laptop Inventory Dashboard</h2>
+    <div style="display: flex; gap: 1rem;">
+        <form method="get" action="{{ url_for('index') }}" class="search-box" style="margin-bottom:0;">
+            <i class="fas fa-search"></i>
+            <input type="text" name="search" placeholder="Search laptops..." value="{{ request.args.get('search', '') }}">
+        </form>
+        <a href="{{ url_for('add') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Add New Laptop</a>
+        <!-- Add Spare Parts Section Button -->
+        <a href="{{ url_for('spareparts') }}" class="btn btn-secondary"><i class="fas fa-tools"></i> Spare Parts Inventory</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div style="display: flex; justify-content: flex-start; align-items: center; width: 100%;">
+            <h3>Current Inventory</h3>
+            <div id="bulkActions" style="display: none; gap: 10px; margin-left: auto; margin-right: 0;">
+                <button onclick="bulkDelete()" class="btn btn-danger btn-sm">
+                    <i class="fas fa-trash"></i> Delete Selected
+                </button>
+                <button onclick="bulkDuplicate()" class="btn btn-info btn-sm">
+                    <i class="fas fa-copy"></i> Duplicate Selected
+                </button>
+                <button onclick="clearSelection()" class="btn btn-outline btn-sm">
+                    <i class="fas fa-times"></i> Clear Selection
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Image</th>
+                        <th>Name</th>
+                        <th>CPU</th>
+                        <th>RAM</th>
+                        <th>Storage</th>
+                        <th>OS</th>
+                        <th>Notes</th>
+                        <th>Bought</th>
+                        <th>Sell</th>
+                        <th>Fees</th>
+                        <th>Profit</th>
+                        <th>Last Edited</th>
+                        <th>Actions</th>
+                        <th>
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" style="transform: scale(1.2);">
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for laptop in laptops %}
+                    <tr>
+                        <td>{{ laptop.id }}</td>
+                        <td>
+                            {% if laptop_has_images[laptop.id] %}
+                                <img src="{{ url_for('serve_image', laptop_id=laptop.id) }}" alt="Thumbnail" style="max-width:48px; max-height:48px; border-radius:6px;">
+                            {% else %}
+                                <span style="color:#aaa;">No image</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ laptop.laptop_name }}</td>
+                        <td>{{ laptop.cpu }}</td>
+                        <td>
+                            {{ laptop.ram }}
+                            {% if laptop_spare_counts[laptop.id]['ram'] > 0 %}
+                                <span style="color: #3b82f6;">(+{{ laptop_spare_counts[laptop.id]['ram'] }})</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ laptop.storage }}
+                            {% if laptop_spare_counts[laptop.id]['storage'] > 0 %}
+                                <span style="color: #3b82f6;">(+{{ laptop_spare_counts[laptop.id]['storage'] }})</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ laptop.os }}</td>
+                        <td>{{ laptop.notes }}</td>
+                        <td>${{ laptop.price_bought }}</td>
+                        <td>${{ laptop.price_to_sell }}</td>
+                        <td>${{ laptop.fees }}</td>
+                        <td>${{ laptop.price_to_sell - (laptop.price_bought + laptop.fees) }}</td>
+                        <td>{{ laptop.last_edited }}</td>
+                        <td>
+                            <a href="{{ url_for('edit', laptop_id=laptop.id) }}" class="btn btn-sm btn-primary">Edit</a>
+                            <a href="{{ url_for('delete', laptop_id=laptop.id) }}" class="btn btn-sm btn-danger">Delete</a>
+                            <a href="{{ url_for('mark_sold', laptop_id=laptop.id) }}" class="btn btn-sm btn-success">Mark Sold</a>
+                            <a href="{{ url_for('laptop_detail', laptop_id=laptop.id) }}" class="btn btn-sm btn-info">Details</a>
+                        </td>
+                        <td>
+                            <input type="checkbox" class="laptop-select" value="{{ laptop.id }}" onchange="updateBulkActions()" 
+                                   style="width: 18px; height: 18px; border: 2px solid #dc3545; border-radius: 50%; accent-color: #dc3545; transform: scale(1.2);">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const laptopCheckboxes = document.querySelectorAll('.laptop-select');
+    
+    laptopCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const selectedCheckboxes = document.querySelectorAll('.laptop-select:checked');
+    const bulkActions = document.getElementById('bulkActions');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const allCheckboxes = document.querySelectorAll('.laptop-select');
+    
+    // Show/hide bulk actions based on selection
+    if (selectedCheckboxes.length > 0) {
+        bulkActions.style.display = 'flex';
+    } else {
+        bulkActions.style.display = 'none';
+    }
+    
+    // Update "select all" checkbox state
+    if (selectedCheckboxes.length === allCheckboxes.length) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else if (selectedCheckboxes.length > 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+}
+
+function clearSelection() {
+    document.querySelectorAll('.laptop-select').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('selectAll').indeterminate = false;
+    updateBulkActions();
+}
+
+function getSelectedLaptopIds() {
+    const selectedCheckboxes = document.querySelectorAll('.laptop-select:checked');
+    return Array.from(selectedCheckboxes).map(checkbox => checkbox.value);
+}
+
+function bulkDelete() {
+    const selectedIds = getSelectedLaptopIds();
+    if (selectedIds.length === 0) {
+        alert('Please select laptops to delete.');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete ${selectedIds.length} selected laptop(s)?`)) {
+        // Send AJAX request for bulk delete
+        fetch('/bulk_delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({laptop_ids: selectedIds})
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Error deleting laptops');
+            }
+        })
+        .catch(error => {
+            alert('Error deleting laptops');
+        });
+    }
+}
+
+function bulkDuplicate() {
+    const selectedIds = getSelectedLaptopIds();
+    if (selectedIds.length === 0) {
+        alert('Please select laptops to duplicate.');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to duplicate ${selectedIds.length} selected laptop(s)?`)) {
+        // Send AJAX request for bulk duplicate
+        fetch('/bulk_duplicate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({laptop_ids: selectedIds})
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Error duplicating laptops');
+            }
+        })
+        .catch(error => {
+            alert('Error duplicating laptops');
+        });
+    }
+}
+</script>
+{% endblock %}

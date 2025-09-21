@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Completed Sales{% endblock %}
+{% block content %}
+<div class="header">
+    <h2>Completed Sales</h2>
+    <form method="get" class="search-box" style="margin-bottom:0;">
+        <i class="fas fa-search"></i>
+        <input type="text" name="search" placeholder="Search laptops..." value="{{ search }}">
+    </form>
+</div>
+<div class="stats-container">
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-info">
+            <h3>{{ laptops|length }}</h3>
+            <p>Sold Laptops</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-dollar-sign"></i></div>
+        <div class="stat-info">
+            <h3>${{ total_profit }}</h3>
+            <p>Total Profit</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="stat-info">
+            <h3>${{ total_sales }}</h3>
+            <p>Total Sales</p>
+        </div>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header">
+        <h3>Sales History</h3>
+    </div>
+    <div class="card-body">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Specs</th>
+                        <th>Sold Price</th>
+                        <th>Profit</th>
+                        <th>Date Sold</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for laptop in laptops %}
+                    <tr>
+                        <td>#{{ laptop.id }}</td>
+                        <td>{{ laptop.laptop_name }}</td>
+                        <td>{{ laptop.cpu }}/{{ laptop.ram }}/{{ laptop.storage }}</td>
+                        <td>${{ laptop.price_to_sell }}</td>
+                        <td>${{ laptop.price_to_sell - (laptop.price_bought + laptop.fees) }}</td>
+                        <td>{{ laptop.date_sold or 'N/A' }}</td>
+                        <td>
+                            <div class="table-actions">
+                                <a href="{{ url_for('edit', laptop_id=laptop.id) }}" class="btn btn-sm btn-primary"><i class="fas fa-edit"></i></a>
+                                <a href="{{ url_for('delete', laptop_id=laptop.id) }}" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></a>
+                                <a href="{{ url_for('mark_available', laptop_id=laptop.id) }}" class="btn btn-sm btn-warning"><i class="fas fa-undo"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Add Laptop{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3>Add New Laptop</h3>
+    </div>
+    <div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="laptop_name">Laptop Name</label>
+                <input type="text" id="laptop_name" name="laptop_name" class="form-control" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="cpu">CPU</label>
+                    <input type="text" id="cpu" name="cpu" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="ram">RAM</label>
+                    <input type="text" id="ram" name="ram" class="form-control" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="storage">Storage</label>
+                    <input type="text" id="storage" name="storage" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="os">Operating System</label>
+                    <input type="text" id="os" name="os" class="form-control" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="notes">Notes</label>
+                <input type="text" id="notes" name="notes" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="images">Upload Images</label>
+                <input type="file" id="images" name="images" accept="image/*" class="form-control" multiple>
+                <small class="form-text text-muted">You can select multiple images. The first image will be set as primary.</small>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="price_bought">Price Bought</label>
+                    <input type="number" id="price_bought" name="price_bought" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="price_to_sell">Price to Sell</label>
+                    <input type="number" id="price_to_sell" name="price_to_sell" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="fees">Fees</label>
+                    <input type="number" id="fees" name="fees" class="form-control" step="0.01" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add Laptop</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Add Spare Part to Laptop{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 2rem auto;">
+    <div class="card-header">
+        <h3>Add Spare Part to Laptop</h3>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <div class="form-group">
+                <label>Select Spare Part:</label>
+                <select name="sparepart_id" class="form-control" required>
+                    {% for part in spareparts %}
+                    <option value="{{ part.id }}">
+                        {{ part.part_type }} - {{ part.storage_type or part.ram_type }} ({{ part.capacity }}) [Qty: {{ part.quantity }}]
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Add</button>
+        </form>
+        <a href="{{ url_for('laptop_detail', laptop_id=laptop_id) }}" class="btn btn-outline" style="width:100%;margin-top:1rem;">Back to Laptop</a>
+    </div>
+</div>
+{% endblock %}
