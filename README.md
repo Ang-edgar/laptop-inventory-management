@@ -48,7 +48,7 @@ A web-based inventory system I built for tracking laptops, spare parts, and sale
 
 ```bash
 # Make sure you have Docker installed
-git clone https://github.com/yourusername/laptop-inventory-management.git
+git clone https://github.com/Ang-edgar/laptop-inventory-management.git
 cd laptop-inventory-management
 
 # Start the application
