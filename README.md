@@ -36,6 +36,14 @@ A web-based inventory system I built for tracking laptops, spare parts, and sale
 - View total profits and sales figures
 - Can move items back to inventory if needed
 
+## Screenshots
+
+![Main Dashboard](docs/inventory.png)
+*Main inventory dashboard with laptop listings*
+
+![Bulk Selection](docs/bulk_selection.png)
+*Bulk selection and operations interface*
+
 ## How to Run
 
 ```bash
