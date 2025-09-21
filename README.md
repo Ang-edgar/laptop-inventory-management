@@ -41,6 +41,12 @@ A web-based inventory system I built for tracking laptops, spare parts, and sale
 ![Main Dashboard](docs/inventory.png)
 *Main inventory dashboard with laptop listings*
 
+![Add Laptop](docs/add_laptops.png)
+*Add new laptop form with specifications and image upload*
+
+![Edit Laptop](docs/edit_laptop.png)
+*Edit laptop details with multi-image management and bulk operations*
+
 ![Bulk Selection](docs/bulk_selection.png)
 *Bulk selection and operations interface*
 
