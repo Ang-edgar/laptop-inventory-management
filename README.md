@@ -38,11 +38,11 @@ A web-based inventory system I built for tracking laptops, spare parts, and sale
 
 ## Screenshots
 
-![Main Dashboard](screenshots/dashboard.png)
+![Main Dashboard](screenshots/inventory.png)
 *Main inventory dashboard with laptop listings*
 
-![Image Management](screenshots/images.png)
-*Multiple image support with primary image selection*
+![Bulk Selection](screenshots/bulk_selection.png)
+*Bulk selection and operations interface*
 
 ## How to Run
 
