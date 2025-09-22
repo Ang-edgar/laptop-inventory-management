@@ -3,15 +3,22 @@ import sqlite3
 import datetime
 import csv
 import io
-import os
+import os  # This was missing!
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key"  # Needed for session
+app.secret_key = "your_secret_key"
 UPLOAD_FOLDER = os.path.join("static", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+def safe_float(value, default=0.0):
+    """Safely convert value to float"""
+    try:
+        return float(value) if value else default
+    except (ValueError, TypeError):
+        return default
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -20,13 +27,77 @@ def allowed_file(filename):
 def get_db():
     # Get database path from environment variable or use default
     db_path = os.environ.get('DB_PATH', 'laptops.db')
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    # Only create directory if path contains a directory
+    if os.path.dirname(db_path):
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
     
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    
     return conn
+
+def generate_serial_number(laptop_name):
+    """Generate a serial number based on laptop brand, date, and increment"""
+    from datetime import datetime
+    
+    # Extract brand from laptop name
+    laptop_name_lower = laptop_name.lower()
+    
+    # Brand mapping
+    if 'asus' in laptop_name_lower or 'asuspro' in laptop_name_lower:
+        prefix = 'AS'
+    elif 'dell' in laptop_name_lower:
+        prefix = 'DE'
+    elif 'lenovo' in laptop_name_lower:
+        prefix = 'LE'
+    elif 'thinkpad' in laptop_name_lower:
+        prefix = 'TH'
+    elif 'hp' in laptop_name_lower or 'hewlett' in laptop_name_lower:
+        prefix = 'HP'
+    elif 'acer' in laptop_name_lower:
+        prefix = 'AC'
+    elif 'msi' in laptop_name_lower:
+        prefix = 'MS'
+    elif 'macbook' in laptop_name_lower or 'apple' in laptop_name_lower:
+        prefix = 'AP'
+    elif 'microsoft' in laptop_name_lower or 'surface' in laptop_name_lower:
+        prefix = 'SF'
+    elif 'samsung' in laptop_name_lower:
+        prefix = 'SM'
+    else:
+        prefix = 'GN'  # Generic
+    
+    # Get current date in MMYY format
+    now = datetime.now()
+    date_part = now.strftime("%m%y")  # 0925 for September 2025
+    
+    # Create the date-based prefix
+    date_prefix = f"{prefix}{date_part}"  # DE0925
+    
+    # Get current count for this brand and month/year combination
+    with get_db() as conn:
+        try:
+            count = conn.execute("SELECT COUNT(*) FROM laptops WHERE serial_number LIKE ?", (f"{date_prefix}%",)).fetchone()[0]
+        except:
+            count = 0
+        
+        next_number = count + 1
+        
+        # Format: PREFIX + MMYY + 2-digit number (01-99)
+        serial = f"{date_prefix}{next_number:02d}"
+        
+        # Ensure uniqueness
+        try:
+            while conn.execute("SELECT COUNT(*) FROM laptops WHERE serial_number = ?", (serial,)).fetchone()[0] > 0:
+                next_number += 1
+                if next_number > 99:
+                    # If we exceed 99 laptops in one month, add extra digits
+                    serial = f"{date_prefix}{next_number:03d}"
+                else:
+                    serial = f"{date_prefix}{next_number:02d}"
+        except:
+            pass
+    
+    return serial
 
 # --- Create table if not exists ---
 with get_db() as conn:
@@ -42,40 +113,46 @@ with get_db() as conn:
         price_bought REAL,
         price_to_sell REAL,
         fees REAL,
-        image TEXT, -- stores image filename (legacy)
-        image_data BLOB, -- stores image binary data
-        image_mimetype TEXT, -- stores image MIME type
+        image TEXT,
+        image_data BLOB,
+        image_mimetype TEXT,
         created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_edited TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         date_sold TEXT,
-        sold INTEGER DEFAULT 0
+        sold INTEGER DEFAULT 0,
+        serial_number TEXT UNIQUE
     )
     """)
     
-    # Add new columns for existing databases
-    try:
-        conn.execute("ALTER TABLE laptops ADD COLUMN image_data BLOB")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
+    # Add new columns to existing databases (safe operations)
+    columns_to_add = [
+        ("image_data", "BLOB"),
+        ("image_mimetype", "TEXT"),
+        ("serial_number", "TEXT UNIQUE")
+    ]
     
-    try:
-        conn.execute("ALTER TABLE laptops ADD COLUMN image_mimetype TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
+    for column_name, column_type in columns_to_add:
+        try:
+            conn.execute(f"ALTER TABLE laptops ADD COLUMN {column_name} {column_type}")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+    
+    # Create other tables
     conn.execute("""
     CREATE TABLE IF NOT EXISTS spareparts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        part_type TEXT,         -- 'Storage' or 'RAM'
-        storage_type TEXT,      -- For Storage: '2.5" HDD', '2.5" SSD', 'M.2 NVMe', 'M.2 SATA'
-        ram_type TEXT,          -- For RAM: 'DDR3', 'DDR4'
-        ram_speed TEXT,         -- For RAM: e.g. '1600MHz', '2400MHz'
-        capacity TEXT,          -- e.g. '128GB', '1TB'
+        part_type TEXT,
+        storage_type TEXT,
+        ram_type TEXT,
+        ram_speed TEXT,
+        capacity TEXT,
         notes TEXT,
         quantity INTEGER DEFAULT 1,
         created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_edited TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    
     conn.execute("""
     CREATE TABLE IF NOT EXISTS laptop_spareparts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,6 +163,7 @@ with get_db() as conn:
         FOREIGN KEY (sparepart_id) REFERENCES spareparts(id)
     )
     """)
+    
     conn.execute("""
     CREATE TABLE IF NOT EXISTS laptop_images (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,6 +176,31 @@ with get_db() as conn:
         FOREIGN KEY (laptop_id) REFERENCES laptops(id)
     )
     """)
+
+# Migrate existing laptops (only once)
+def migrate_existing_laptops():
+    """Add serial numbers to existing laptops"""
+    try:
+        with get_db() as conn:
+            # Check if we need to migrate
+            needs_migration = conn.execute("SELECT COUNT(*) FROM laptops WHERE serial_number IS NULL OR serial_number = ''").fetchone()[0]
+            
+            if needs_migration > 0:
+                print(f"Migrating {needs_migration} laptops to use serial numbers...")
+                
+                laptops = conn.execute("SELECT id, laptop_name FROM laptops WHERE serial_number IS NULL OR serial_number = '' ORDER BY id").fetchall()
+                for laptop in laptops:
+                    serial = generate_serial_number(laptop['laptop_name'])
+                    conn.execute("UPDATE laptops SET serial_number = ? WHERE id = ?", (serial, laptop['id']))
+                    print(f"Laptop ID {laptop['id']} -> Serial {serial}")
+                
+                conn.commit()
+                print("Migration completed!")
+    except Exception as e:
+        print(f"Migration error: {e}")
+
+# Run migration
+migrate_existing_laptops()
 
 # --- Home page: list laptops ---
 @app.route("/")
@@ -161,12 +264,16 @@ def add():
     if request.method == "POST":
         conn = get_db()
         
-        # Insert laptop without images first
+        # Generate serial number based on laptop name
+        laptop_name = request.form["laptop_name"]
+        serial_number = generate_serial_number(laptop_name)
+        
+        # Insert laptop with serial number
         cursor = conn.execute("""
-            INSERT INTO laptops (laptop_name, cpu, ram, storage, os, notes, price_bought, price_to_sell, fees)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO laptops (laptop_name, cpu, ram, storage, os, notes, price_bought, price_to_sell, fees, serial_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            request.form["laptop_name"],
+            laptop_name,
             request.form["cpu"],
             request.form["ram"],
             request.form["storage"],
@@ -174,12 +281,13 @@ def add():
             request.form["notes"],
             request.form["price_bought"],
             request.form["price_to_sell"],
-            request.form["fees"]
+            request.form["fees"],
+            serial_number
         ))
         
         laptop_id = cursor.lastrowid
         
-        # Handle multiple image uploads
+        # Handle multiple image uploads (same as before)
         if "images" in request.files:
             files = request.files.getlist("images")
             for i, file in enumerate(files):
@@ -187,7 +295,7 @@ def add():
                     image_data = file.read()
                     image_mimetype = file.mimetype
                     image_name = secure_filename(file.filename)
-                    is_primary = 1 if i == 0 else 0  # First image is primary
+                    is_primary = 1 if i == 0 else 0
                     
                     conn.execute("""
                         INSERT INTO laptop_images (laptop_id, image_data, image_mimetype, image_name, is_primary)
@@ -236,16 +344,13 @@ def edit(laptop_id):
     conn = get_db()
     laptop = conn.execute("SELECT * FROM laptops WHERE id=?", (laptop_id,)).fetchone()
     if request.method == "POST":
-        # This should only handle laptop details updates, not image uploads
-        # Images are handled by the separate upload_single_image route
-        
         # Check if this is a complete form submission (has laptop details)
         if "laptop_name" in request.form:
             try:
                 # Update laptop details with proper error handling
-                price_bought = float(request.form.get("price_bought", 0) or 0)
-                price_to_sell = float(request.form.get("price_to_sell", 0) or 0)
-                fees = float(request.form.get("fees", 0) or 0)
+                price_bought = safe_float(request.form.get("price_bought"), 0)
+                price_to_sell = safe_float(request.form.get("price_to_sell"), 0)
+                fees = safe_float(request.form.get("fees"), 0)
                 
                 conn.execute("""
                     UPDATE laptops SET laptop_name=?, cpu=?, ram=?, storage=?, os=?, notes=?, 
@@ -266,10 +371,11 @@ def edit(laptop_id):
                     laptop_id
                 ))
                 conn.commit()
-                return redirect(url_for("index"))
+                flash("Laptop updated successfully!", "success")
+                return redirect(url_for("edit", laptop_id=laptop_id))
             except Exception as e:
                 print(f"Error updating laptop: {e}")
-                # Stay on the edit page if there's an error
+                flash("Error updating laptop. Please try again.", "error")
     
     # Get images for display
     images = conn.execute("SELECT * FROM laptop_images WHERE laptop_id=? ORDER BY is_primary DESC, uploaded_date", (laptop_id,)).fetchall()
@@ -278,9 +384,19 @@ def edit(laptop_id):
 # --- Delete laptop ---
 @app.route("/delete/<int:laptop_id>")
 def delete(laptop_id):
-    conn = get_db()
-    conn.execute("DELETE FROM laptops WHERE id=?", (laptop_id,))
-    conn.commit()
+    try:
+        with get_db() as conn:
+            # Delete associated images first
+            conn.execute("DELETE FROM laptop_images WHERE laptop_id=?", (laptop_id,))
+            # Delete spare parts relationships
+            conn.execute("DELETE FROM laptop_spareparts WHERE laptop_id=?", (laptop_id,))
+            # Delete the laptop
+            conn.execute("DELETE FROM laptops WHERE id=?", (laptop_id,))
+            conn.commit()
+    except Exception as e:
+        print(f"Error deleting laptop {laptop_id}: {e}")
+        flash("Error deleting laptop", "error")
+    
     return redirect(url_for("index"))
 
 # --- Mark as sold ---
@@ -625,13 +741,17 @@ def bulk_duplicate():
                 # Get the original laptop data
                 laptop = cursor.execute("SELECT * FROM laptops WHERE id = ?", (laptop_id,)).fetchone()
                 if laptop:
-                    # Insert duplicated laptop with only essential columns
+                    # Generate new serial number for the copy
+                    copy_name = f"{laptop['laptop_name']} (Copy)"
+                    new_serial = generate_serial_number(copy_name)
+                    
+                    # Insert duplicated laptop with new serial number
                     cursor.execute("""
                         INSERT INTO laptops (laptop_name, cpu, ram, storage, os, notes, 
-                                           price_bought, price_to_sell, fees, sold)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                           price_bought, price_to_sell, fees, sold, serial_number)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
-                        f"{laptop['laptop_name']} (Copy)",
+                        copy_name,
                         laptop['cpu'], 
                         laptop['ram'], 
                         laptop['storage'], 
@@ -640,12 +760,13 @@ def bulk_duplicate():
                         laptop['price_bought'], 
                         laptop['price_to_sell'],
                         laptop['fees'], 
-                        0  # sold=0
+                        0,  # sold=0
+                        new_serial
                     ))
                     
                     new_laptop_id = cursor.lastrowid
                     
-                    # Copy images from laptop_images table
+                    # Copy images and spare parts (same as before)
                     images = cursor.execute("SELECT * FROM laptop_images WHERE laptop_id = ?", (laptop_id,)).fetchall()
                     for image in images:
                         cursor.execute("""
@@ -657,7 +778,6 @@ def bulk_duplicate():
                             image['image_name'], image['is_primary']
                         ))
                     
-                    # Copy spare parts relationships
                     spare_parts = cursor.execute("SELECT sparepart_id FROM laptop_spareparts WHERE laptop_id = ?", (laptop_id,)).fetchall()
                     for spare_part in spare_parts:
                         cursor.execute("INSERT INTO laptop_spareparts (laptop_id, sparepart_id) VALUES (?, ?)", 
@@ -672,5 +792,6 @@ def bulk_duplicate():
         traceback.print_exc()
         return Response(f"Error duplicating laptops: {str(e)}", status=500)
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)

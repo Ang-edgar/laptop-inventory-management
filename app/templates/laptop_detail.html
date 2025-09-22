@@ -2,7 +2,8 @@
 {% block title %}Laptop Details{% endblock %}
 {% block content %}
 <div class="header">
-    <h2>{{ laptop.laptop_name }}</h2>
+    <!-- Update the header -->
+    <h2>{{ laptop.laptop_name }} ({{ laptop.serial_number or laptop.id }})</h2>
 </div>
 <div class="card" style="max-width: 600px; margin: 2rem auto;">
     <div class="card-header">

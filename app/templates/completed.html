@@ -38,9 +38,11 @@
     <div class="card-body">
         <div class="table-container">
             <table>
+                <!-- Update the table header -->
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>#</th>
+                        <th>Serial #</th>
                         <th>Name</th>
                         <th>Specs</th>
                         <th>Sold Price</th>
@@ -49,10 +51,13 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
+
+                <!-- Update the table body -->
                 <tbody>
                     {% for laptop in laptops %}
                     <tr>
-                        <td>#{{ laptop.id }}</td>
+                        <td>{{ loop.index }}</td>
+                        <td>#{{ laptop.serial_number or laptop.id }}</td>
                         <td>{{ laptop.laptop_name }}</td>
                         <td>{{ laptop.cpu }}/{{ laptop.ram }}/{{ laptop.storage }}</td>
                         <td>${{ laptop.price_to_sell }}</td>
