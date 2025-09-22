@@ -109,7 +109,10 @@
                     <input type="checkbox" name="sold" {% if laptop.sold %}checked{% endif %}> Sold
                 </label>
             </div>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button type="submit" class="btn btn-primary" style="flex: 1; height: 44px;"><i class="fas fa-save"></i> Save Changes</button>
+                <a href="{{ url_for('index') }}" class="btn btn-outline" style="flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; text-decoration: none;"><i class="fas fa-arrow-left"></i> Back to Inventory</a>
+            </div>
         </form>
     </div>
 </div>
@@ -184,4 +187,82 @@ function setPrimaryImage(laptopId, imageId) {
     });
 }
 </script>
+
+<!-- Success/Error Popup -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div id="flashMessage" style="position: fixed; top: 20px; right: 20px; z-index: 9999; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideIn 0.3s ease-out; min-width: 300px;">
+            {% for category, message in messages %}
+                <div style="background: {% if category == 'success' %}#10b981{% else %}#ef4444{% endif %}; color: white; padding: 1rem 1.5rem; border-radius: 8px; display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %}" style="font-size: 1.1rem;"></i>
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <style>
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+        </style>
+        
+        <script>
+            // Auto-hide flash message after 3 seconds
+            setTimeout(function() {
+                var flashMessage = document.getElementById('flashMessage');
+                if (flashMessage) {
+                    flashMessage.style.animation = 'slideOut 0.3s ease-out';
+                    setTimeout(function() {
+                        flashMessage.remove();
+                    }, 300);
+                }
+            }, 3000);
+        </script>
+    {% endif %}
+{% endwith %}
+<style>
+.btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-primary {
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-primary:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-outline:hover {
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+    color: #374151;
+}
+</style>
 {% endblock %}

@@ -34,9 +34,11 @@
     <div class="card-body">
         <div class="table-container">
             <table>
+                <!-- Update the table header -->
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>#</th>
+                        <th>Serial #</th>
                         <th>Image</th>
                         <th>Name</th>
                         <th>CPU</th>
@@ -55,10 +57,13 @@
                         </th>
                     </tr>
                 </thead>
+
+                <!-- Update the table body -->
                 <tbody>
                     {% for laptop in laptops %}
                     <tr>
-                        <td>{{ laptop.id }}</td>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ laptop.serial_number or laptop.id }}</td>
                         <td>
                             {% if laptop_has_images[laptop.id] %}
                                 <img src="{{ url_for('serve_image', laptop_id=laptop.id) }}" alt="Thumbnail" style="max-width:48px; max-height:48px; border-radius:6px;">
@@ -82,14 +87,14 @@
                         </td>
                         <td>{{ laptop.os }}</td>
                         <td>{{ laptop.notes }}</td>
-                        <td>${{ laptop.price_bought }}</td>
-                        <td>${{ laptop.price_to_sell }}</td>
-                        <td>${{ laptop.fees }}</td>
-                        <td>${{ laptop.price_to_sell - (laptop.price_bought + laptop.fees) }}</td>
+                        <td>${{ "%.2f"|format(laptop.price_bought) }}</td>
+                        <td>${{ "%.2f"|format(laptop.price_to_sell) }}</td>
+                        <td>${{ "%.2f"|format(laptop.fees) }}</td>
+                        <td>${{ "%.2f"|format(laptop.price_to_sell - (laptop.price_bought + laptop.fees)) }}</td>
                         <td>{{ laptop.last_edited }}</td>
                         <td>
                             <a href="{{ url_for('edit', laptop_id=laptop.id) }}" class="btn btn-sm btn-primary">Edit</a>
-                            <a href="{{ url_for('delete', laptop_id=laptop.id) }}" class="btn btn-sm btn-danger">Delete</a>
+                            <a href="{{ url_for('delete', laptop_id=laptop.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
                             <a href="{{ url_for('mark_sold', laptop_id=laptop.id) }}" class="btn btn-sm btn-success">Mark Sold</a>
                             <a href="{{ url_for('laptop_detail', laptop_id=laptop.id) }}" class="btn btn-sm btn-info">Details</a>
                         </td>
