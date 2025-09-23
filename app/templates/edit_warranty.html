@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Edit Warranty{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 2rem auto;">
+    <div class="card-header">
+        <h3><i class="fas fa-edit"></i> Edit Warranty</h3>
+    </div>
+    <div class="card-body">
+        <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+            <h4 style="margin-bottom: 0.5rem;">{{ laptop.laptop_name }}</h4>
+            <p style="color: #6b7280; margin: 0;">Serial: {{ laptop.serial_number or laptop.id }}</p>
+        </div>
+        
+        <form method="post">
+            <div class="form-group">
+                <label for="warranty_start_date">Warranty Start Date</label>
+                <input type="date" id="warranty_start_date" name="warranty_start_date" class="form-control" 
+                       value="{{ laptop.warranty_start_date or '' }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="warranty_duration_days">Warranty Duration (Days)</label>
+                <input type="number" id="warranty_duration_days" name="warranty_duration_days" class="form-control" 
+                       value="{{ laptop.warranty_duration_days or '' }}" min="1" max="3650" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="warranty_notes">Warranty Notes</label>
+                <textarea id="warranty_notes" name="warranty_notes" class="form-control" rows="3">{{ laptop.warranty_notes or '' }}</textarea>
+            </div>
+            
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <i class="fas fa-save"></i> Update Warranty
+                </button>
+                <a href="{{ url_for('ongoing_warranties') }}" class="btn btn-outline" style="flex: 1;">
+                    <i class="fas fa-arrow-left"></i> Back to Warranties
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -4,7 +4,7 @@ version: '3.8'
 services:
   web:
     build: .
-    image: laptop_inventory_app:v1.0
+    image: laptop_inventory_app:v1.1
     ports:
       - "5000:5000"
     volumes:

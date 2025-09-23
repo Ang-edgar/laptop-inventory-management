@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Add Warranty{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 2rem auto;">
+    <div class="card-header">
+        <h3><i class="fas fa-shield-alt"></i> Add Warranty</h3>
+    </div>
+    <div class="card-body">
+        <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+            <h4 style="margin-bottom: 0.5rem;">{{ laptop.laptop_name }}</h4>
+            <p style="color: #6b7280; margin: 0;">Serial: {{ laptop.serial_number or laptop.id }} | Sold: {{ laptop.date_sold or 'N/A' }}</p>
+        </div>
+        
+        <form method="post">
+            <div class="form-group">
+                <label for="warranty_start_date">Warranty Start Date</label>
+                <input type="date" id="warranty_start_date" name="warranty_start_date" class="form-control" 
+                       value="{{ laptop.date_sold or '' }}" required>
+                <small class="form-text text-muted">Usually the date the laptop was sold</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="warranty_duration_days">Warranty Duration (Days)</label>
+                <select id="warranty_duration_days" name="warranty_duration_days" class="form-control" required>
+                    <option value="">Select Duration</option>
+                    <option value="30">30 Days (1 Month)</option>
+                    <option value="90">90 Days (3 Months)</option>
+                    <option value="180">180 Days (6 Months)</option>
+                    <option value="365">365 Days (1 Year)</option>
+                    <option value="730">730 Days (2 Years)</option>
+                    <option value="1095">1095 Days (3 Years)</option>
+                </select>
+                <small class="form-text text-muted">Or enter a custom number of days below</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="custom_duration">Custom Duration (Days)</label>
+                <input type="number" id="custom_duration" name="custom_duration" class="form-control" 
+                       min="1" max="3650" placeholder="Enter custom duration">
+                <small class="form-text text-muted">Overrides the selection above if filled</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="warranty_notes">Warranty Notes</label>
+                <textarea id="warranty_notes" name="warranty_notes" class="form-control" rows="3" 
+                          placeholder="e.g., Hardware warranty, Parts only, Labor included, etc."></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <i class="fas fa-shield-alt"></i> Add Warranty
+                </button>
+                <a href="{{ url_for('completed_sales') }}" class="btn btn-outline" style="flex: 1;">
+                    <i class="fas fa-arrow-left"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Handle custom duration override
+document.getElementById('custom_duration').addEventListener('input', function() {
+    if (this.value) {
+        document.getElementById('warranty_duration_days').value = this.value;
+    }
+});
+
+document.getElementById('warranty_duration_days').addEventListener('change', function() {
+    if (this.value) {
+        document.getElementById('custom_duration').value = '';
+    }
+});
+
+// Auto-populate warranty start date with sale date if available
+document.addEventListener('DOMContentLoaded', function() {
+    const startDateInput = document.getElementById('warranty_start_date');
+    if (!startDateInput.value) {
+        // Set to today's date if no sale date available
+        const today = new Date().toISOString().split('T')[0];
+        startDateInput.value = today;
+    }
+});
+</script>
+{% endblock %}
