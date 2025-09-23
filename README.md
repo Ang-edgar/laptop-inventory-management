@@ -5,14 +5,29 @@ A web-based tool I built for managing laptop inventory, spare parts, and sales. 
 ![Main Dashboard](docs/inventory.png)
 *Main inventory view with all laptops and their details*
 
+![Serial Number Generation](docs/serial_numbers.png)
+*Automagically generates a serial number by laptop brand and date*
+
+![Sales](docs/sales.png)
+*See total sales and profit numbers*
+
 ![Add Laptop Interface](docs/add_laptops.png)
 *Adding a new laptop to the inventory*
 
 ![Edit & Image Management](docs/edit_laptop.png)
-*Editing laptop details and managing multiple images*
+*Editing existing laptop details*
+
+![Spareparts Management](docs/spareparts.png)
+*Edit spareparts such RAM and storage*
 
 ![Bulk Operations](docs/bulk_selection.png)
-*Selecting multiple laptops for bulk operations*
+*Selecting multiple laptops for bulk operations like deleting and duplicating*
+
+
+
+
+
+
 
 
 
