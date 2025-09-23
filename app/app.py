@@ -128,7 +128,10 @@ with get_db() as conn:
     columns_to_add = [
         ("image_data", "BLOB"),
         ("image_mimetype", "TEXT"),
-        ("serial_number", "TEXT UNIQUE")
+        ("serial_number", "TEXT UNIQUE"),
+        ("warranty_start_date", "TEXT"),
+        ("warranty_duration_days", "INTEGER DEFAULT 0"),
+        ("warranty_notes", "TEXT")
     ]
     
     for column_name, column_type in columns_to_add:
@@ -792,6 +795,144 @@ def bulk_duplicate():
         traceback.print_exc()
         return Response(f"Error duplicating laptops: {str(e)}", status=500)
 
+def get_warranty_status(warranty_start_date, warranty_duration_days):
+    """Calculate warranty status and days remaining"""
+    if not warranty_start_date or not warranty_duration_days:
+        return None, None, None
+    
+    from datetime import datetime, timedelta
+    
+    try:
+        start_date = datetime.strptime(warranty_start_date, '%Y-%m-%d')
+        end_date = start_date + timedelta(days=warranty_duration_days)
+        today = datetime.now()
+        
+        if today > end_date:
+            return "expired", 0, "expired"
+        
+        days_remaining = (end_date - today).days + 1
+        
+        if days_remaining > 60:
+            status_color = "green"
+        elif days_remaining > 30:
+            status_color = "orange"
+        else:
+            status_color = "red"
+            
+        return "active", days_remaining, status_color
+        
+    except ValueError:
+        return None, None, None
+
+def format_warranty_display(days_remaining, status_color):
+    """Format warranty display text with color"""
+    if days_remaining is None:
+        return ""
+    
+    if days_remaining == 0:
+        return '<span style="background: #ef4444; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">EXPIRED</span>'
+    
+    color_map = {
+        "green": "#10b981",
+        "orange": "#f59e0b", 
+        "red": "#ef4444"
+    }
+    
+    return f'<span style="background: {color_map[status_color]}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">{days_remaining} days left</span>'
+
+# Add these routes after your existing routes
+
+@app.route("/ongoing_warranties")
+def ongoing_warranties():
+    """Show laptops with active warranties"""
+    conn = get_db()
+    
+    # Get sold laptops with active warranties
+    laptops = conn.execute("""
+        SELECT * FROM laptops 
+        WHERE sold = 1 
+        AND warranty_start_date IS NOT NULL 
+        AND warranty_duration_days > 0
+        ORDER BY warranty_start_date DESC
+    """).fetchall()
+    
+    # Calculate warranty status for each laptop
+    warranty_laptops = []
+    for laptop in laptops:
+        status, days_remaining, color = get_warranty_status(
+            laptop['warranty_start_date'], 
+            laptop['warranty_duration_days']
+        )
+        
+        if status == "active":  # Only show active warranties
+            laptop_dict = dict(laptop)
+            laptop_dict['warranty_status'] = status
+            laptop_dict['days_remaining'] = days_remaining
+            laptop_dict['status_color'] = color
+            laptop_dict['warranty_display'] = format_warranty_display(days_remaining, color)
+            warranty_laptops.append(laptop_dict)
+    
+    return render_template("ongoing_warranties.html", laptops=warranty_laptops)
+
+@app.route("/add_warranty/<int:laptop_id>", methods=["GET", "POST"])
+def add_warranty(laptop_id):
+    """Add warranty to a sold laptop"""
+    conn = get_db()
+    laptop = conn.execute("SELECT * FROM laptops WHERE id = ? AND sold = 1", (laptop_id,)).fetchone()
+    
+    if not laptop:
+        flash("Laptop not found or not sold", "error")
+        return redirect(url_for("completed_sales"))
+    
+    if request.method == "POST":
+        warranty_start_date = request.form.get("warranty_start_date")
+        warranty_duration_days = safe_float(request.form.get("warranty_duration_days"), 0)
+        warranty_notes = request.form.get("warranty_notes", "")
+        
+        try:
+            conn.execute("""
+                UPDATE laptops 
+                SET warranty_start_date = ?, warranty_duration_days = ?, warranty_notes = ?
+                WHERE id = ?
+            """, (warranty_start_date, int(warranty_duration_days), warranty_notes, laptop_id))
+            conn.commit()
+            flash("Warranty added successfully!", "success")
+            return redirect(url_for("completed_sales"))
+        except Exception as e:
+            flash("Error adding warranty", "error")
+            print(f"Error adding warranty: {e}")
+    
+    return render_template("add_warranty.html", laptop=laptop)
+
+@app.route("/edit_warranty/<int:laptop_id>", methods=["GET", "POST"])
+def edit_warranty(laptop_id):
+    """Edit warranty for a laptop"""
+    conn = get_db()
+    laptop = conn.execute("SELECT * FROM laptops WHERE id = ?", (laptop_id,)).fetchone()
+    
+    if not laptop:
+        flash("Laptop not found", "error")
+        return redirect(url_for("completed_sales"))
+    
+    if request.method == "POST":
+        warranty_start_date = request.form.get("warranty_start_date")
+        warranty_duration_days = safe_float(request.form.get("warranty_duration_days"), 0)
+        warranty_notes = request.form.get("warranty_notes", "")
+        
+        try:
+            conn.execute("""
+                UPDATE laptops 
+                SET warranty_start_date = ?, warranty_duration_days = ?, warranty_notes = ?
+                WHERE id = ?
+            """, (warranty_start_date, int(warranty_duration_days), warranty_notes, laptop_id))
+            conn.commit()
+            flash("Warranty updated successfully!", "success")
+            return redirect(url_for("ongoing_warranties"))
+        except Exception as e:
+            flash("Error updating warranty", "error")
+            print(f"Error updating warranty: {e}")
+    
+    return render_template("edit_warranty.html", laptop=laptop)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

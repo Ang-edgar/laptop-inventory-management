@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Ongoing Warranties{% endblock %}
+{% block content %}
+<div class="header">
+    <h2>Ongoing Warranties</h2>
+    <div style="display: flex; gap: 1rem;">
+        <form method="get" class="search-box" style="margin-bottom:0;">
+            <i class="fas fa-search"></i>
+            <input type="text" name="search" placeholder="Search warranties..." value="{{ request.args.get('search', '') }}">
+        </form>
+        <a href="{{ url_for('completed_sales') }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Sales</a>
+    </div>
+</div>
+
+<div class="stats-container">
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-shield-alt"></i></div>
+        <div class="stat-info">
+            <h3>{{ laptops|length }}</h3>
+            <p>Active Warranties</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+            <h3>{{ laptops|selectattr('status_color', 'equalto', 'orange')|list|length }}</h3>
+            <p>Expiring Soon</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="stat-info">
+            <h3>{{ laptops|selectattr('status_color', 'equalto', 'red')|list|length }}</h3>
+            <p>Critical (30 days)</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-shield-alt"></i> Warranty Tracking</h3>
+    </div>
+    <div class="card-body">
+        {% if laptops %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Serial #</th>
+                        <th>Laptop</th>
+                        <th>Warranty Status</th>
+                        <th>Start Date</th>
+                        <th>Duration</th>
+                        <th>Notes</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for laptop in laptops %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ laptop.serial_number or laptop.id }}</td>
+                        <td>
+                            <strong>{{ laptop.laptop_name }}</strong><br>
+                            <small style="color: #6b7280;">{{ laptop.cpu }} / {{ laptop.ram }}</small>
+                        </td>
+                        <td>{{ laptop.warranty_display|safe }}</td>
+                        <td>{{ laptop.warranty_start_date }}</td>
+                        <td>{{ laptop.warranty_duration_days }} days</td>
+                        <td>{{ laptop.warranty_notes or '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('edit_warranty', laptop_id=laptop.id) }}" class="btn btn-sm btn-primary" title="Edit Warranty">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{{ url_for('laptop_detail', laptop_id=laptop.id) }}" class="btn btn-sm btn-info" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 3rem; color: #6b7280;">
+            <i class="fas fa-shield-alt" style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+            <h4>No Active Warranties</h4>
+            <p>No laptops currently have active warranties.</p>
+            <a href="{{ url_for('completed_sales') }}" class="btn btn-primary" style="margin-top: 1rem;">
+                <i class="fas fa-plus"></i> Add Warranty to Sold Laptop
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

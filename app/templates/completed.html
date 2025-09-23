@@ -65,9 +65,14 @@
                         <td>{{ laptop.date_sold or 'N/A' }}</td>
                         <td>
                             <div class="table-actions">
-                                <a href="{{ url_for('edit', laptop_id=laptop.id) }}" class="btn btn-sm btn-primary"><i class="fas fa-edit"></i></a>
-                                <a href="{{ url_for('delete', laptop_id=laptop.id) }}" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></a>
-                                <a href="{{ url_for('mark_available', laptop_id=laptop.id) }}" class="btn btn-sm btn-warning"><i class="fas fa-undo"></i></a>
+                                <a href="{{ url_for('edit', laptop_id=laptop.id) }}" class="btn btn-sm btn-primary" title="Edit"><i class="fas fa-edit"></i></a>
+                                <a href="{{ url_for('delete', laptop_id=laptop.id) }}" class="btn btn-sm btn-danger" title="Delete"><i class="fas fa-trash"></i></a>
+                                <a href="{{ url_for('mark_available', laptop_id=laptop.id) }}" class="btn btn-sm btn-warning" title="Mark Available"><i class="fas fa-undo"></i></a>
+                                {% if laptop.warranty_start_date %}
+                                    <a href="{{ url_for('edit_warranty', laptop_id=laptop.id) }}" class="btn btn-sm btn-success" title="Edit Warranty"><i class="fas fa-shield-alt"></i></a>
+                                {% else %}
+                                    <a href="{{ url_for('add_warranty', laptop_id=laptop.id) }}" class="btn btn-sm btn-info" title="Add Warranty"><i class="fas fa-plus"></i></a>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
