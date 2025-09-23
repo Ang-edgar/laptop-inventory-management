@@ -14,6 +14,8 @@ A web-based tool I built for managing laptop inventory, spare parts, and sales. 
 ![Bulk Operations](docs/bulk_selection.png)
 *Selecting multiple laptops for bulk operations*
 
+
+
 ## What It Does
 
 ### Smart Serial Numbers
