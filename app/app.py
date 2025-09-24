@@ -5,6 +5,7 @@ import csv
 import io
 import os  # This was missing!
 from werkzeug.utils import secure_filename
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
@@ -22,6 +23,25 @@ def safe_float(value, default=0.0):
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# --- Authentication helpers ---
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in') or session.get('role') != 'admin':
+            flash('Admin access required. Please log in as admin.', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # --- Database helper ---
 def get_db():
@@ -179,6 +199,55 @@ with get_db() as conn:
         FOREIGN KEY (laptop_id) REFERENCES laptops(id)
     )
     """)
+    
+    # Create users table for admin/guest authentication
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'guest',
+        created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
+    # Create orders table
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guest_name TEXT,
+        guest_email TEXT,
+        guest_phone TEXT,
+        status TEXT DEFAULT 'unconfirmed',
+        total_amount REAL DEFAULT 0,
+        created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        confirmed_date TIMESTAMP,
+        completed_date TIMESTAMP,
+        notes TEXT
+    )
+    """)
+    
+    # Create order_items table
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS order_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER,
+        laptop_id INTEGER,
+        quantity INTEGER DEFAULT 1,
+        price REAL,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+        FOREIGN KEY (laptop_id) REFERENCES laptops(id)
+    )
+    """)
+    
+    # Insert default admin user if not exists
+    admin_exists = conn.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0]
+    if admin_exists == 0:
+        conn.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", 
+                    ('admin', 'admin123', 'admin'))
+        print("Default admin user created: admin / admin123")
+    
+    conn.commit()
 
 # Migrate existing laptops (only once)
 def migrate_existing_laptops():
@@ -205,9 +274,50 @@ def migrate_existing_laptops():
 # Run migration
 migrate_existing_laptops()
 
-# --- Home page: list laptops ---
+# --- Authentication routes ---
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        
+        with get_db() as conn:
+            user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", 
+                               (username, password)).fetchone()
+            
+            if user:
+                session['logged_in'] = True
+                session['user_id'] = user['id']
+                session['username'] = user['username']
+                session['role'] = user['role']
+                
+                flash(f'Welcome, Admin!', 'success')
+                
+                if user['role'] == 'admin':
+                    return redirect(url_for('admin_panel'))
+                else:
+                    # No more guest login - redirect to main shop
+                    return redirect(url_for('guest_shop'))
+            else:
+                flash('Invalid credentials. Please try again.', 'error')
+    
+    return render_template('login.html')
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('login'))  # Redirect to login page
+
+# --- Home page: Redirect to login ---
 @app.route("/")
 def index():
+    return redirect(url_for('login'))
+
+# --- Admin panel (login required) ---
+@app.route("/admin")
+@admin_required
+def admin_panel():
     sort_by = request.args.get('sort', 'id')
     order = request.args.get('order', 'asc')
     search = request.args.get('search', '')
@@ -260,9 +370,9 @@ def index():
                        laptop_has_images=laptop_has_images, sold_count=sold_count,
                        available_count=available_count, total_profit=total_profit,
                        sort_by=sort_by, order=order)
-
 # --- Add new laptop page ---
 @app.route("/add", methods=["GET", "POST"])
+@admin_required
 def add():
     if request.method == "POST":
         conn = get_db()
@@ -306,11 +416,12 @@ def add():
                     """, (laptop_id, image_data, image_mimetype, image_name, is_primary))
         
         conn.commit()
-        return redirect(url_for("index"))
+        return redirect(url_for("admin_panel"))
     return render_template("add.html")
 
 # --- Completed sales page ---
 @app.route("/completed")
+@admin_required
 def completed_sales():
     sort_by = request.args.get('sort', 'laptop_name')
     order = request.args.get('order', 'asc')
@@ -343,6 +454,7 @@ def completed_sales():
 
 # --- Edit laptop ---
 @app.route("/edit/<int:laptop_id>", methods=["GET", "POST"])
+@admin_required
 def edit(laptop_id):
     conn = get_db()
     laptop = conn.execute("SELECT * FROM laptops WHERE id=?", (laptop_id,)).fetchone()
@@ -386,6 +498,7 @@ def edit(laptop_id):
 
 # --- Delete laptop ---
 @app.route("/delete/<int:laptop_id>")
+@admin_required
 def delete(laptop_id):
     try:
         with get_db() as conn:
@@ -400,10 +513,11 @@ def delete(laptop_id):
         print(f"Error deleting laptop {laptop_id}: {e}")
         flash("Error deleting laptop", "error")
     
-    return redirect(url_for("index"))
+    return redirect(url_for("admin_panel"))
 
 # --- Mark as sold ---
 @app.route("/mark_sold/<int:laptop_id>")
+@admin_required
 def mark_sold(laptop_id):
     conn = get_db()
     now = datetime.datetime.now()
@@ -412,10 +526,11 @@ def mark_sold(laptop_id):
         WHERE id=?
     """, (now, now, laptop_id))
     conn.commit()
-    return redirect(url_for("index"))
+    return redirect(url_for("admin_panel"))
 
 # --- Mark as available ---
 @app.route("/mark_available/<int:laptop_id>")
+@admin_required
 def mark_available(laptop_id):
     conn = get_db()
     conn.execute("""
@@ -427,6 +542,7 @@ def mark_available(laptop_id):
 
 # --- Export data ---
 @app.route("/export", methods=["POST"])
+@admin_required
 def export():
     conn = get_db()
     laptops = conn.execute("SELECT * FROM laptops").fetchall()
@@ -440,11 +556,13 @@ def export():
 
 # --- Settings page ---
 @app.route("/settings")
+@admin_required
 def settings():
     return render_template("settings.html")
 
 # --- Reset data ---
 @app.route("/reset_data", methods=["POST"])
+@admin_required
 def reset_data():
     confirm = request.form.get("reset_confirm", "")
     if confirm.strip().lower() == "reset":
@@ -458,6 +576,7 @@ def reset_data():
 
 # --- Spare parts page ---
 @app.route("/spareparts")
+@admin_required
 def spareparts():
     sort_by = request.args.get('sort', 'id')
     order = request.args.get('order', 'asc')
@@ -494,6 +613,7 @@ def spareparts():
 
 # --- Add new spare part page ---
 @app.route("/add_sparepart", methods=["GET", "POST"])
+@admin_required
 def add_sparepart():
     if request.method == "POST":
         conn = get_db()
@@ -516,6 +636,7 @@ def add_sparepart():
 
 # --- Edit spare part ---
 @app.route("/edit_sparepart/<int:part_id>", methods=["GET", "POST"])
+@admin_required
 def edit_sparepart(part_id):
     conn = get_db()
     part = conn.execute("SELECT * FROM spareparts WHERE id=?", (part_id,)).fetchone()
@@ -547,6 +668,7 @@ def edit_sparepart(part_id):
 
 # --- Delete spare part ---
 @app.route("/delete_sparepart/<int:part_id>")
+@admin_required
 def delete_sparepart(part_id):
     conn = get_db()
     conn.execute("DELETE FROM spareparts WHERE id=?", (part_id,))
@@ -555,6 +677,7 @@ def delete_sparepart(part_id):
 
 # --- Laptop detail page ---
 @app.route("/laptop/<int:laptop_id>")
+@admin_required
 def laptop_detail(laptop_id):
     conn = get_db()
     laptop = conn.execute("SELECT * FROM laptops WHERE id=?", (laptop_id,)).fetchone()
@@ -568,6 +691,7 @@ def laptop_detail(laptop_id):
 
 # --- Add spare part to laptop ---
 @app.route("/add_sparepart_to_laptop/<int:laptop_id>", methods=["GET", "POST"])
+@admin_required
 def add_sparepart_to_laptop(laptop_id):
     conn = get_db()
     # Only show spare parts with quantity > 0
@@ -584,6 +708,7 @@ def add_sparepart_to_laptop(laptop_id):
 
 # --- Remove spare part from laptop ---
 @app.route("/remove_sparepart_from_laptop/<int:laptop_id>/<int:sparepart_id>", methods=["POST"])
+@admin_required
 def remove_sparepart_from_laptop(laptop_id, sparepart_id):
     conn = get_db()
     # Remove the link
@@ -634,6 +759,7 @@ def serve_specific_image(laptop_id, image_id):
 
 # --- Upload single image ---
 @app.route("/upload_single_image/<int:laptop_id>", methods=["POST"])
+@admin_required
 def upload_single_image(laptop_id):
     conn = get_db()
     
@@ -655,6 +781,7 @@ def upload_single_image(laptop_id):
 
 # --- Delete specific image ---
 @app.route("/delete_image/<int:laptop_id>/<int:image_id>", methods=["POST"])
+@admin_required
 def delete_image(laptop_id, image_id):
     conn = get_db()
     
@@ -687,6 +814,7 @@ def delete_image(laptop_id, image_id):
 
 # --- Set primary image ---
 @app.route("/set_primary_image/<int:laptop_id>/<int:image_id>", methods=["POST"])
+@admin_required
 def set_primary_image(laptop_id, image_id):
     try:
         conn = get_db()
@@ -702,6 +830,7 @@ def set_primary_image(laptop_id, image_id):
 
 # --- Bulk delete laptops ---
 @app.route("/bulk_delete", methods=["POST"])
+@admin_required
 def bulk_delete():
     try:
         data = request.get_json()
@@ -730,6 +859,7 @@ def bulk_delete():
 
 # --- Bulk duplicate laptops ---
 @app.route("/bulk_duplicate", methods=["POST"])
+@admin_required
 def bulk_duplicate():
     try:
         data = request.get_json()
@@ -843,6 +973,7 @@ def format_warranty_display(days_remaining, status_color):
 # Add these routes after your existing routes
 
 @app.route("/ongoing_warranties")
+@admin_required
 def ongoing_warranties():
     """Show laptops with active warranties"""
     conn = get_db()
@@ -875,6 +1006,7 @@ def ongoing_warranties():
     return render_template("ongoing_warranties.html", laptops=warranty_laptops)
 
 @app.route("/add_warranty/<int:laptop_id>", methods=["GET", "POST"])
+@admin_required
 def add_warranty(laptop_id):
     """Add warranty to a sold laptop"""
     conn = get_db()
@@ -905,6 +1037,7 @@ def add_warranty(laptop_id):
     return render_template("add_warranty.html", laptop=laptop)
 
 @app.route("/edit_warranty/<int:laptop_id>", methods=["GET", "POST"])
+@admin_required
 def edit_warranty(laptop_id):
     """Edit warranty for a laptop"""
     conn = get_db()
@@ -933,6 +1066,409 @@ def edit_warranty(laptop_id):
             print(f"Error updating warranty: {e}")
     
     return render_template("edit_warranty.html", laptop=laptop)
+
+# --- Guest Shopping Routes ---
+@app.route("/shop")
+def guest_shop():
+    # No login required - this is now the public guest interface
+    
+    search = request.args.get('search', '')
+    
+    conn = get_db()
+    query = "SELECT * FROM laptops WHERE sold = 0"
+    params = []
+    
+    if search:
+        query += " AND (laptop_name LIKE ? OR cpu LIKE ? OR ram LIKE ? OR storage LIKE ?)"
+        search_param = f"%{search}%"
+        params.extend([search_param, search_param, search_param, search_param])
+    
+    query += " ORDER BY id DESC"
+    laptops = conn.execute(query, params).fetchall()
+    
+    # Convert to list of dictionaries and add image data
+    laptops_with_images = []
+    for laptop in laptops:
+        laptop_dict = dict(laptop)
+        
+        # Get primary image from laptop_images table
+        primary_image = conn.execute("""
+            SELECT image_data FROM laptop_images 
+            WHERE laptop_id = ? AND is_primary = 1 
+            ORDER BY uploaded_date DESC LIMIT 1
+        """, (laptop['id'],)).fetchone()
+        
+        # If no primary image, get any image
+        if not primary_image:
+            primary_image = conn.execute("""
+                SELECT image_data FROM laptop_images 
+                WHERE laptop_id = ? 
+                ORDER BY uploaded_date DESC LIMIT 1
+            """, (laptop['id'],)).fetchone()
+        
+        # Add image data to laptop dict
+        if primary_image:
+            import base64
+            laptop_dict['image_data'] = base64.b64encode(primary_image['image_data']).decode('utf-8')
+        else:
+            laptop_dict['image_data'] = None
+            
+        laptops_with_images.append(laptop_dict)
+    
+    conn.close()
+    
+    # Get cart count
+    cart_count = len(session.get('cart', []))
+    
+    return render_template('guest_shop.html', laptops=laptops_with_images, search=search, cart_count=cart_count)
+
+@app.route("/add_to_cart/<int:laptop_id>")
+def add_to_cart(laptop_id):
+    # No login required - anyone can add to cart
+    
+    # Initialize cart if not exists
+    if 'cart' not in session:
+        session['cart'] = []
+    
+    # Check if laptop exists and is available
+    with get_db() as conn:
+        laptop = conn.execute("SELECT * FROM laptops WHERE id = ? AND sold = 0", (laptop_id,)).fetchone()
+        if not laptop:
+            flash('Laptop not available.', 'error')
+            return redirect(url_for('guest_shop'))
+    
+    # Check if already in cart
+    if laptop_id not in session['cart']:
+        session['cart'].append(laptop_id)
+        flash(f'{laptop["laptop_name"]} added to cart!', 'success')
+    else:
+        flash('This laptop is already in your cart.', 'warning')
+    
+    return redirect(url_for('guest_shop'))
+
+@app.route("/remove_from_cart/<int:laptop_id>")
+def remove_from_cart(laptop_id):
+    # No login required
+    
+    if 'cart' in session and laptop_id in session['cart']:
+        session['cart'].remove(laptop_id)
+        flash('Item removed from cart.', 'info')
+    
+    return redirect(url_for('view_cart'))
+
+@app.route("/cart")
+def view_cart():
+    # No login required
+    
+    cart_items = []
+    total_amount = 0
+    
+    if 'cart' in session and session['cart']:
+        with get_db() as conn:
+            placeholders = ','.join(['?'] * len(session['cart']))
+            cart_laptops = conn.execute(
+                f"SELECT * FROM laptops WHERE id IN ({placeholders}) AND sold = 0", 
+                session['cart']
+            ).fetchall()
+            
+            # Convert to list of dictionaries and add image data
+            for laptop in cart_laptops:
+                laptop_dict = dict(laptop)
+                
+                # Get primary image from laptop_images table
+                primary_image = conn.execute("""
+                    SELECT image_data FROM laptop_images 
+                    WHERE laptop_id = ? AND is_primary = 1 
+                    ORDER BY uploaded_date DESC LIMIT 1
+                """, (laptop['id'],)).fetchone()
+                
+                # If no primary image, get any image
+                if not primary_image:
+                    primary_image = conn.execute("""
+                        SELECT image_data FROM laptop_images 
+                        WHERE laptop_id = ? 
+                        ORDER BY uploaded_date DESC LIMIT 1
+                    """, (laptop['id'],)).fetchone()
+                
+                # Add image data to laptop dict
+                if primary_image:
+                    import base64
+                    laptop_dict['image_data'] = base64.b64encode(primary_image['image_data']).decode('utf-8')
+                else:
+                    laptop_dict['image_data'] = None
+                    
+                cart_items.append(laptop_dict)
+                total_amount += laptop['price_to_sell']
+    
+    return render_template('cart.html', cart_items=cart_items, total_amount=total_amount)
+
+@app.route("/checkout", methods=["GET", "POST"])
+def checkout():
+    # No login required - collect guest info at checkout
+    
+    if 'cart' not in session or not session['cart']:
+        flash('Your cart is empty.', 'error')
+        return redirect(url_for('guest_shop'))  # Redirect to guest shop
+    
+    if request.method == "GET":
+        # Show checkout form with guest information fields
+        cart_items = []
+        total_amount = 0
+        
+        with get_db() as conn:
+            placeholders = ','.join(['?'] * len(session['cart']))
+            cart_laptops = conn.execute(
+                f"SELECT * FROM laptops WHERE id IN ({placeholders}) AND sold = 0", 
+                session['cart']
+            ).fetchall()
+            
+            # Convert to list of dictionaries and add image data
+            for laptop in cart_laptops:
+                laptop_dict = dict(laptop)
+                
+                # Get primary image from laptop_images table
+                primary_image = conn.execute("""
+                    SELECT image_data FROM laptop_images 
+                    WHERE laptop_id = ? AND is_primary = 1 
+                    ORDER BY uploaded_date DESC LIMIT 1
+                """, (laptop['id'],)).fetchone()
+                
+                # If no primary image, get any image
+                if not primary_image:
+                    primary_image = conn.execute("""
+                        SELECT image_data FROM laptop_images 
+                        WHERE laptop_id = ? 
+                        ORDER BY uploaded_date DESC LIMIT 1
+                    """, (laptop['id'],)).fetchone()
+                
+                # Add image data to laptop dict
+                if primary_image:
+                    import base64
+                    laptop_dict['image_data'] = base64.b64encode(primary_image['image_data']).decode('utf-8')
+                else:
+                    laptop_dict['image_data'] = None
+                    
+                cart_items.append(laptop_dict)
+                total_amount += laptop['price_to_sell']
+        
+        return render_template('checkout.html', cart_items=cart_items, total_amount=total_amount)
+    
+    # POST request - process the order
+    guest_name = request.form.get('guest_name')
+    guest_email = request.form.get('guest_email')
+    guest_phone = request.form.get('guest_phone', '')
+    notes = request.form.get('notes', '')
+    
+    if not guest_name or not guest_email:
+        flash('Please provide your name and email address.', 'error')
+        return redirect(url_for('checkout'))
+    
+    with get_db() as conn:
+        # Verify all items are still available
+        placeholders = ','.join(['?'] * len(session['cart']))
+        available_laptops = conn.execute(
+            f"SELECT * FROM laptops WHERE id IN ({placeholders}) AND sold = 0", 
+            session['cart']
+        ).fetchall()
+        
+        if len(available_laptops) != len(session['cart']):
+            flash('Some items in your cart are no longer available.', 'error')
+            return redirect(url_for('view_cart'))
+        
+        # Calculate total
+        total_amount = sum(laptop['price_to_sell'] for laptop in available_laptops)
+        
+        # Create order
+        cursor = conn.execute("""
+            INSERT INTO orders (guest_name, guest_email, guest_phone, total_amount, notes)
+            VALUES (?, ?, ?, ?, ?)
+        """, (guest_name, guest_email, guest_phone, total_amount, notes))
+        
+        order_id = cursor.lastrowid
+        
+        # Add order items
+        for laptop in available_laptops:
+            conn.execute("""
+                INSERT INTO order_items (order_id, laptop_id, quantity, price)
+                VALUES (?, ?, 1, ?)
+            """, (order_id, laptop['id'], laptop['price_to_sell']))
+        
+        conn.commit()
+    
+    # Clear cart
+    session['cart'] = []
+    
+    flash('Your order has been submitted! Order ID: #' + str(order_id), 'success')
+    return redirect(url_for('guest_orders'))
+
+@app.route("/my_orders", methods=["GET", "POST"])
+def guest_orders():
+    # No login required - check orders by email
+    
+    if request.method == "GET":
+        return render_template('order_lookup.html')
+    
+    # POST - lookup orders by email
+    email = request.form.get('email')
+    if not email:
+        flash('Please enter your email address.', 'error')
+        return redirect(url_for('guest_orders'))
+    
+    with get_db() as conn:
+        orders = conn.execute("""
+            SELECT o.*, COUNT(oi.id) as item_count
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            WHERE o.guest_email = ?
+            GROUP BY o.id
+            ORDER BY o.created_date DESC
+        """, (email,)).fetchall()
+    
+    return render_template('guest_orders.html', orders=orders, email=email)
+
+# --- Admin Order Management Routes ---
+@app.route("/admin/orders")
+@admin_required
+def admin_orders():
+    with get_db() as conn:
+        unconfirmed_orders = conn.execute("""
+            SELECT o.*, COUNT(oi.id) as item_count
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            WHERE o.status = 'unconfirmed'
+            GROUP BY o.id
+            ORDER BY o.created_date DESC
+        """).fetchall()
+        
+        confirmed_orders = conn.execute("""
+            SELECT o.*, COUNT(oi.id) as item_count
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            WHERE o.status IN ('confirmed', 'in_progress')
+            GROUP BY o.id
+            ORDER BY o.created_date DESC
+        """).fetchall()
+    
+    return render_template('admin_orders.html', 
+                         unconfirmed_orders=unconfirmed_orders,
+                         confirmed_orders=confirmed_orders)
+
+@app.route("/admin/order/<int:order_id>")
+@admin_required
+def admin_order_details(order_id):
+    with get_db() as conn:
+        order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        if not order:
+            flash('Order not found.', 'error')
+            return redirect(url_for('admin_orders'))
+        
+        order_items = conn.execute("""
+            SELECT oi.*, l.laptop_name, l.cpu, l.ram, l.storage, l.serial_number
+            FROM order_items oi
+            JOIN laptops l ON oi.laptop_id = l.id
+            WHERE oi.order_id = ?
+        """, (order_id,)).fetchall()
+    
+    return render_template('admin_order_details.html', order=order, order_items=order_items)
+
+@app.route("/admin/order/<int:order_id>/confirm", methods=["POST"])
+@admin_required
+def confirm_order(order_id):
+    with get_db() as conn:
+        conn.execute("""
+            UPDATE orders SET status = 'confirmed', confirmed_date = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (order_id,))
+        conn.commit()
+    
+    flash('Order confirmed successfully!', 'success')
+    return redirect(url_for('admin_orders'))
+
+@app.route("/admin/order/<int:order_id>/reject", methods=["POST"])
+@admin_required
+def reject_order(order_id):
+    with get_db() as conn:
+        conn.execute("DELETE FROM orders WHERE id = ?", (order_id,))
+        conn.commit()
+    
+    flash('Order rejected and deleted.', 'info')
+    return redirect(url_for('admin_orders'))
+
+@app.route("/admin/order/<int:order_id>/start", methods=["POST"])
+@admin_required
+def start_order(order_id):
+    with get_db() as conn:
+        conn.execute("""
+            UPDATE orders SET status = 'in_progress'
+            WHERE id = ?
+        """, (order_id,))
+        conn.commit()
+    
+    flash('Order started!', 'info')
+    return redirect(url_for('admin_orders'))
+
+@app.route("/admin/order/<int:order_id>/finish", methods=["POST"])
+@admin_required
+def finish_order(order_id):
+    with get_db() as conn:
+        # Get order items
+        order_items = conn.execute("""
+            SELECT laptop_id FROM order_items WHERE order_id = ?
+        """, (order_id,)).fetchall()
+        
+        # Mark laptops as sold
+        for item in order_items:
+            conn.execute("""
+                UPDATE laptops SET sold = 1, date_sold = ?
+                WHERE id = ?
+            """, (datetime.datetime.now().strftime('%Y-%m-%d'), item['laptop_id']))
+        
+        # Update order status
+        conn.execute("""
+            UPDATE orders SET status = 'completed', completed_date = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (order_id,))
+        
+        conn.commit()
+    
+    flash('Order completed! Laptops moved to sales.', 'success')
+    return redirect(url_for('admin_orders'))
+
+@app.route("/admin/order/<int:order_id>/undo", methods=["POST"])
+@admin_required
+def undo_order(order_id):
+    with get_db() as conn:
+        conn.execute("""
+            UPDATE orders SET status = 'unconfirmed', confirmed_date = NULL
+            WHERE id = ?
+        """, (order_id,))
+        conn.commit()
+    
+    flash('Order moved back to unconfirmed.', 'info')
+    return redirect(url_for('admin_orders'))
+
+@app.route("/admin/order/<int:order_id>/delete", methods=["POST"])
+@admin_required
+def delete_order(order_id):
+    with get_db() as conn:
+        # Get order items to return laptops to inventory
+        order_items = conn.execute("""
+            SELECT laptop_id FROM order_items WHERE order_id = ?
+        """, (order_id,)).fetchall()
+        
+        # Mark laptops as available again
+        for item in order_items:
+            conn.execute("""
+                UPDATE laptops SET sold = 0, date_sold = NULL
+                WHERE id = ?
+            """, (item['laptop_id'],))
+        
+        # Delete order (cascade will delete order_items)
+        conn.execute("DELETE FROM orders WHERE id = ?", (order_id,))
+        conn.commit()
+    
+    flash('Order deleted and items returned to inventory.', 'success')
+    return redirect(url_for('admin_orders'))
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
