@@ -6,6 +6,7 @@ import io
 import os  # This was missing!
 from werkzeug.utils import secure_filename
 from functools import wraps
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
@@ -306,8 +307,9 @@ def login():
 @app.route("/logout")
 def logout():
     session.clear()
+    session.pop('_flashes', None)  # Ensure no old flash messages
     flash('You have been logged out.', 'info')
-    return redirect(url_for('login'))  # Redirect to login page
+    return redirect(url_for('login'))
 
 # --- Home page: Redirect to login ---
 @app.route("/")
@@ -482,7 +484,7 @@ def edit(laptop_id):
                     price_to_sell,
                     fees,
                     1 if "sold" in request.form else 0,
-                    datetime.datetime.now(),
+                    datetime.now(),
                     laptop_id
                 ))
                 conn.commit()
@@ -520,7 +522,7 @@ def delete(laptop_id):
 @admin_required
 def mark_sold(laptop_id):
     conn = get_db()
-    now = datetime.datetime.now()
+    now = datetime.now()
     conn.execute("""
         UPDATE laptops SET sold=1, last_edited=?, date_sold=?
         WHERE id=?
@@ -536,7 +538,7 @@ def mark_available(laptop_id):
     conn.execute("""
         UPDATE laptops SET sold=0, last_edited=?
         WHERE id=?
-    """, (datetime.datetime.now(), laptop_id))
+    """, (datetime.now(), laptop_id))
     conn.commit()
     return redirect(url_for("completed_sales"))
 
@@ -1303,27 +1305,26 @@ def checkout():
 
 @app.route("/my_orders", methods=["GET", "POST"])
 def guest_orders():
-    # No login required - check orders by email
-    
-    if request.method == "GET":
-        return render_template('order_lookup.html')
-    
-    # POST - lookup orders by email
-    email = request.form.get('email')
-    if not email:
-        flash('Please enter your email address.', 'error')
-        return redirect(url_for('guest_orders'))
-    
-    with get_db() as conn:
-        orders = conn.execute("""
-            SELECT o.*, COUNT(oi.id) as item_count
-            FROM orders o
-            LEFT JOIN order_items oi ON o.id = oi.order_id
-            WHERE o.guest_email = ?
-            GROUP BY o.id
-            ORDER BY o.created_date DESC
-        """, (email,)).fetchall()
-    
+    email = None
+    orders = []
+    rows = []  # Ensure rows is always defined
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        if email:
+            conn = get_db()
+            rows = conn.execute(
+                "SELECT *, (SELECT COUNT(*) FROM order_items WHERE order_id=orders.id) as item_count FROM orders WHERE guest_email=? ORDER BY created_date DESC",
+                (email,)
+            ).fetchall()
+    # Convert rows to dicts and format date
+    for row in rows:
+        order = dict(row)
+        try:
+            dt = datetime.strptime(order["created_date"], "%Y-%m-%d %H:%M:%S")
+            order["created_date_fmt"] = dt.strftime("%B %d, %Y at %I:%M %p")
+        except Exception:
+            order["created_date_fmt"] = order["created_date"]
+        orders.append(order)
     return render_template('guest_orders.html', orders=orders, email=email)
 
 # --- Admin Order Management Routes ---
@@ -1421,7 +1422,7 @@ def finish_order(order_id):
             conn.execute("""
                 UPDATE laptops SET sold = 1, date_sold = ?
                 WHERE id = ?
-            """, (datetime.datetime.now().strftime('%Y-%m-%d'), item['laptop_id']))
+            """, (datetime.now().strftime('%Y-%m-%d'), item['laptop_id']))
         
         # Update order status
         conn.execute("""

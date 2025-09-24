@@ -1,10 +1,26 @@
 {% extends "guest_base.html" %}
-
 {% block title %}My Orders - Laptop Inventory{% endblock %}
-
 {% block content %}
 <div class="container">
     <h1><i class="fas fa-list-alt"></i> Your Orders</h1>
+    
+    {% if not email %}
+    <div class="mb-4">
+        <form method="POST" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label for="email" class="col-form-label">Enter your email address:</label>
+            </div>
+            <div class="col-auto">
+                <input type="email" class="form-control" id="email" name="email" required placeholder="e.g., john@example.com">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Find My Orders
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
     
     {% if email %}
     <div class="mb-3">
@@ -32,7 +48,7 @@
                     <div class="order-info">
                         <div class="info-row">
                             <i class="fas fa-calendar"></i>
-                            <span>{{ order.created_date.strftime('%B %d, %Y at %I:%M %p') if order.created_date else 'N/A' }}</span>
+                            <span>{{ order.created_date_fmt if order.created_date_fmt else 'N/A' }}</span>
                         </div>
                         <div class="info-row">
                             <i class="fas fa-shopping-cart"></i>
