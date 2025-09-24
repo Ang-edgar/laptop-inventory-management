@@ -4,7 +4,7 @@
 <div class="header">
     <h2>Laptop Inventory Dashboard</h2>
     <div style="display: flex; gap: 1rem;">
-        <form method="get" action="{{ url_for('index') }}" class="search-box" style="margin-bottom:0;">
+        <form method="get" action="{{ url_for('admin_panel') }}" class="search-box" style="margin-bottom:0;">
             <i class="fas fa-search"></i>
             <input type="text" name="search" placeholder="Search laptops..." value="{{ request.args.get('search', '') }}">
         </form>

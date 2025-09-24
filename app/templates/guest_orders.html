@@ -1,0 +1,222 @@
+{% extends "guest_base.html" %}
+
+{% block title %}My Orders - Laptop Inventory{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1><i class="fas fa-list-alt"></i> Your Orders</h1>
+    
+    {% if email %}
+    <div class="mb-3">
+        <span class="badge bg-info">Orders for: {{ email }}</span>
+        <a href="{{ url_for('guest_orders') }}" class="btn btn-sm btn-outline-secondary ms-2">
+            <i class="fas fa-search"></i> Search Different Email
+        </a>
+    </div>
+    {% endif %}
+
+    {% if orders %}
+    <div class="row">
+        {% for order in orders %}
+        <div class="col-md-6 mb-4">
+            <div class="card order-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-receipt"></i> Order #{{ order.id }}
+                    </h5>
+                    <span class="badge bg-{{ 'success' if order.status == 'confirmed' else 'warning' if order.status == 'unconfirmed' else 'primary' if order.status == 'in_progress' else 'secondary' }}">
+                        {{ order.status.replace('_', ' ').title() }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="order-info">
+                        <div class="info-row">
+                            <i class="fas fa-calendar"></i>
+                            <span>{{ order.created_date.strftime('%B %d, %Y at %I:%M %p') if order.created_date else 'N/A' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-shopping-cart"></i>
+                            <span>{{ order.item_count }} item{{ 's' if order.item_count != 1 else '' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-dollar-sign"></i>
+                            <span class="order-total">₱{{ "{:.2f}".format(order.total_amount) }}</span>
+                        </div>
+                        {% if order.notes %}
+                        <div class="info-row">
+                            <i class="fas fa-sticky-note"></i>
+                            <span class="text-muted">{{ order.notes }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="status-progress mt-3">
+                        <div class="progress-steps">
+                            <div class="step {{ 'active' if order.status in ['unconfirmed', 'confirmed', 'in_progress', 'completed'] else '' }}">
+                                <i class="fas fa-clock"></i>
+                                <span>Placed</span>
+                            </div>
+                            <div class="step {{ 'active' if order.status in ['confirmed', 'in_progress', 'completed'] else '' }}">
+                                <i class="fas fa-check"></i>
+                                <span>Confirmed</span>
+                            </div>
+                            <div class="step {{ 'active' if order.status in ['in_progress', 'completed'] else '' }}">
+                                <i class="fas fa-cogs"></i>
+                                <span>Processing</span>
+                            </div>
+                            <div class="step {{ 'active' if order.status == 'completed' else '' }}">
+                                <i class="fas fa-shipping-fast"></i>
+                                <span>Ready</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-orders">
+        <div class="text-center">
+            <i class="fas fa-shopping-cart empty-icon"></i>
+            {% if email %}
+            <h3>No orders found</h3>
+            <p>No orders were found for <strong>{{ email }}</strong></p>
+            <p>Make sure you entered the correct email address used when placing your orders.</p>
+            {% else %}
+            <h3>Find your orders</h3>
+            <p>Enter your email address to view your order history.</p>
+            {% endif %}
+            <div class="mt-3">
+                <a href="{{ url_for('guest_shop') }}" class="btn btn-primary me-2">
+                    <i class="fas fa-shopping-bag"></i> Start Shopping
+                </a>
+                {% if email %}
+                <a href="{{ url_for('guest_orders') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-search"></i> Try Different Email
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.order-card {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: none;
+    transition: transform 0.2s;
+}
+
+.order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.info-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.info-row i {
+    width: 18px;
+    margin-right: 10px;
+    color: #667eea;
+}
+
+.order-total {
+    font-weight: bold;
+    color: #28a745;
+}
+
+.status-progress {
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.progress-steps {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+}
+
+.progress-steps::before {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: 12.5%;
+    right: 12.5%;
+    height: 2px;
+    background: #dee2e6;
+    z-index: 1;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+}
+
+.step i {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #dee2e6;
+    color: #6c757d;
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+}
+
+.step.active i {
+    background: #667eea;
+    color: white;
+}
+
+.step span {
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+.step.active span {
+    color: #667eea;
+    font-weight: 600;
+}
+
+.no-orders {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .progress-steps {
+        font-size: 0.8rem;
+    }
+    
+    .step i {
+        width: 25px;
+        height: 25px;
+        font-size: 0.7rem;
+    }
+    
+    .step span {
+        font-size: 0.6rem;
+    }
+}
+</style>
+{% endblock %}

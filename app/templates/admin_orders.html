@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Order Management{% endblock %}
+{% block content %}
+<div class="header">
+    <h2><i class="fas fa-clipboard-list"></i> Order Management</h2>
+    <div style="display: flex; gap: 1rem;">
+        <a href="{{ url_for('admin_panel') }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Inventory</a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+    <!-- Unconfirmed Orders -->
+    <div class="card">
+        <div class="card-header" style="background: #fed7d7; color: #c53030;">
+            <h3><i class="fas fa-clock"></i> Unconfirmed Orders ({{ unconfirmed_orders|length }})</h3>
+        </div>
+        <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+            {% if unconfirmed_orders %}
+                {% for order in unconfirmed_orders %}
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: #fef5e7;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <div>
+                                <strong>Order #{{ order.id }}</strong>
+                                <br>
+                                <small style="color: #718096;">{{ order.created_date }}</small>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 1.2rem; font-weight: bold; color: #38a169;">
+                                    ${{ "%.2f"|format(order.total_amount) }}
+                                </div>
+                                <div style="font-size: 0.9rem; color: #718096;">
+                                    {{ order.item_count }} item{{ 's' if order.item_count > 1 else '' }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <strong>Customer:</strong> {{ order.guest_name }}<br>
+                            <strong>Email:</strong> {{ order.guest_email }}<br>
+                            {% if order.guest_phone %}
+                                <strong>Phone:</strong> {{ order.guest_phone }}<br>
+                            {% endif %}
+                            {% if order.notes %}
+                                <strong>Notes:</strong> {{ order.notes }}<br>
+                            {% endif %}
+                        </div>
+                        
+                        <div style="display: flex; gap: 0.5rem;">
+                            <a href="{{ url_for('admin_order_details', order_id=order.id) }}" 
+                               class="btn btn-sm btn-info" title="View Details">
+                                <i class="fas fa-eye"></i> View Details
+                            </a>
+                            <form method="post" action="{{ url_for('confirm_order', order_id=order.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-success" title="Confirm Order"
+                                        onclick="return confirm('Confirm this order?')">
+                                    <i class="fas fa-check"></i> Confirm
+                                </button>
+                            </form>
+                            <form method="post" action="{{ url_for('reject_order', order_id=order.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" title="Reject Order"
+                                        onclick="return confirm('Reject and delete this order? This cannot be undone.')">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div style="text-align: center; padding: 2rem; color: #718096;">
+                    <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                    <p>No unconfirmed orders</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Confirmed Orders -->
+    <div class="card">
+        <div class="card-header" style="background: #c6f6d5; color: #2f855a;">
+            <h3><i class="fas fa-check-circle"></i> Confirmed Orders ({{ confirmed_orders|length }})</h3>
+        </div>
+        <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+            {% if confirmed_orders %}
+                {% for order in confirmed_orders %}
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; 
+                                background: {% if order.status == 'confirmed' %}#f0fff4{% else %}#e6f3ff{% endif %};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <div>
+                                <strong>Order #{{ order.id }}</strong>
+                                {% if order.status == 'in_progress' %}
+                                    <span style="background: #bee3f8; color: #2c5282; padding: 0.25rem 0.5rem; 
+                                                 border-radius: 1rem; font-size: 0.7rem; font-weight: bold; margin-left: 0.5rem;">
+                                        IN PROGRESS
+                                    </span>
+                                {% endif %}
+                                <br>
+                                <small style="color: #718096;">
+                                    Created: {{ order.created_date }}
+                                    {% if order.confirmed_date %}
+                                        | Confirmed: {{ order.confirmed_date }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 1.2rem; font-weight: bold; color: #38a169;">
+                                    ${{ "%.2f"|format(order.total_amount) }}
+                                </div>
+                                <div style="font-size: 0.9rem; color: #718096;">
+                                    {{ order.item_count }} item{{ 's' if order.item_count > 1 else '' }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <strong>Customer:</strong> {{ order.guest_name }}<br>
+                            <strong>Email:</strong> {{ order.guest_email }}<br>
+                            {% if order.guest_phone %}
+                                <strong>Phone:</strong> {{ order.guest_phone }}<br>
+                            {% endif %}
+                            {% if order.notes %}
+                                <strong>Notes:</strong> {{ order.notes }}<br>
+                            {% endif %}
+                        </div>
+                        
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <a href="{{ url_for('admin_order_details', order_id=order.id) }}" 
+                               class="btn btn-sm btn-info" title="View Details">
+                                <i class="fas fa-eye"></i> Details
+                            </a>
+                            
+                            {% if order.status == 'confirmed' %}
+                                <form method="post" action="{{ url_for('start_order', order_id=order.id) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-primary" title="Start Processing">
+                                        <i class="fas fa-play"></i> Start
+                                    </button>
+                                </form>
+                            {% elif order.status == 'in_progress' %}
+                                <form method="post" action="{{ url_for('finish_order', order_id=order.id) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-success" title="Mark as Finished"
+                                            onclick="return confirm('Mark this order as finished? Laptops will be moved to sales.')">
+                                        <i class="fas fa-flag-checkered"></i> Finish
+                                    </button>
+                                </form>
+                            {% endif %}
+                            
+                            <form method="post" action="{{ url_for('undo_order', order_id=order.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-warning" title="Move Back to Unconfirmed"
+                                        onclick="return confirm('Move this order back to unconfirmed status?')">
+                                    <i class="fas fa-undo"></i> Undo
+                                </button>
+                            </form>
+                            
+                            <form method="post" action="{{ url_for('delete_order', order_id=order.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" title="Delete Order"
+                                        onclick="return confirm('Delete this order? Items will be returned to inventory. This cannot be undone.')">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div style="text-align: center; padding: 2rem; color: #718096;">
+                    <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                    <p>No confirmed orders</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Order Statistics -->
+<div class="stats-container">
+    <div class="stat-card">
+        <div class="stat-icon red"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+            <h3>{{ unconfirmed_orders|length }}</h3>
+            <p>Awaiting Confirmation</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-info">
+            <h3>{{ confirmed_orders|selectattr('status', 'equalto', 'confirmed')|list|length }}</h3>
+            <p>Confirmed Orders</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-cog"></i></div>
+        <div class="stat-info">
+            <h3>{{ confirmed_orders|selectattr('status', 'equalto', 'in_progress')|list|length }}</h3>
+            <p>In Progress</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-dollar-sign"></i></div>
+        <div class="stat-info">
+            <h3>${{ "%.0f"|format((unconfirmed_orders + confirmed_orders)|sum(attribute='total_amount')) }}</h3>
+            <p>Total Order Value</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

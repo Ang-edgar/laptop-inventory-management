@@ -1,0 +1,505 @@
+{% extends "guest_base.html" %}
+
+{% block title %}Shopping Cart - Laptop Inventory{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1><i class="fas fa-shopping-cart"></i> Your Cart</h1>
+
+    {% if cart_items %}
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Cart Items ({{ cart_items|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% for item in cart_items %}
+                    <div class="cart-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                {% if item.image_data %}
+                                <img src="data:image/jpeg;base64,{{ item.image_data }}" class="laptop-image" alt="{{ item.laptop_name }}">
+                                {% else %}
+                                <div class="no-image">
+                                    <i class="fas fa-laptop"></i>
+                                    <span>No Image</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <h5>{{ item.laptop_name }}</h5>
+                                <div class="specs">
+                                    <span><i class="fas fa-microchip"></i> {{ item.cpu }}</span>
+                                    <span><i class="fas fa-memory"></i> {{ item.ram }}</span>
+                                    <span><i class="fas fa-hdd"></i> {{ item.storage }}</span>
+                                </div>
+                                <div class="os-badge">
+                                    <i class="fab fa-windows"></i> {{ item.os }}
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-right">
+                                <div class="item-price">₱{{ "{:.2f}".format(item.price_to_sell) }}</div>
+                                <a href="{{ url_for('remove_from_cart', laptop_id=item.id) }}" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i> Remove
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-calculator"></i> Order Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="summary-row">
+                        <span>Subtotal ({{ cart_items|length }} items)</span>
+                        <span>₱{{ "{:.2f}".format(total_amount) }}</span>
+                    </div>
+                    <div class="summary-row total">
+                        <strong>
+                            <span>Total</span>
+                            <span>₱{{ "{:.2f}".format(total_amount) }}</span>
+                        </strong>
+                    </div>
+                    
+                    <a href="{{ url_for('checkout') }}" class="btn btn-success btn-lg btn-block mt-3">
+                        <i class="fas fa-credit-card"></i> Proceed to Checkout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-cart">
+        <div class="text-center">
+            <i class="fas fa-shopping-cart empty-icon"></i>
+            <h3>Your cart is empty</h3>
+            <p>Add some laptops to your cart to get started!</p>
+            <a href="{{ url_for('guest_shop') }}" class="btn btn-primary">
+                <i class="fas fa-shopping-bag"></i> Start Shopping
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="mt-3">
+        <a href="{{ url_for('guest_shop') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Continue Shopping
+        </a>
+    </div>
+</div>
+
+<style>
+.cart-item {
+    padding: 1rem 0;
+}
+
+.laptop-image {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.no-image {
+    width: 100%;
+    height: 120px;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+}
+
+.no-image i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.specs span {
+    display: inline-block;
+    margin-right: 15px;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.specs i {
+    color: #007bff;
+    margin-right: 5px;
+}
+
+.os-badge {
+    margin-top: 0.5rem;
+}
+
+.os-badge i {
+    color: #0078d4;
+    margin-right: 5px;
+}
+
+.item-price {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #28a745;
+    margin-bottom: 0.5rem;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0;
+}
+
+.summary-row.total {
+    border-top: 2px solid #007bff;
+    padding-top: 1rem;
+    font-size: 1.2rem;
+}
+
+.empty-cart {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1rem;
+}
+
+.btn-block {
+    width: 100%;
+}
+</style>
+{% endblock %}
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #4a5568;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover {
+            background: #f7fafc;
+            color: #2d3748;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+            color: white;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .cart-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        .cart-header {
+            background: #667eea;
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .cart-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .cart-content {
+            padding: 2rem;
+        }
+
+        .cart-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            background: #f8fafc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-name {
+            color: #2d3748;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .item-specs {
+            color: #718096;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 0.5rem;
+        }
+
+        .item-price {
+            color: #38a169;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .item-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .remove-btn {
+            background: #e53e3e;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .remove-btn:hover {
+            background: #c53030;
+        }
+
+        .cart-summary {
+            border-top: 2px solid #e2e8f0;
+            padding-top: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .total-label {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .total-amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #38a169;
+        }
+
+        .checkout-form {
+            margin-top: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            color: #4a5568;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .checkout-btn {
+            width: 100%;
+            background: #38a169;
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .checkout-btn:hover {
+            background: #2f855a;
+            transform: translateY(-1px);
+        }
+
+        .empty-cart {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #718096;
+        }
+
+        .empty-cart i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .empty-cart h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .shop-btn {
+            background: #667eea;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 1rem;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+
+        .shop-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fas fa-shopping-cart"></i> Shopping Cart</h1>
+        <div class="nav-links">
+            <a href="{{ url_for('guest_shop') }}"><i class="fas fa-arrow-left"></i> Continue Shopping</a>
+            <a href="{{ url_for('guest_orders') }}"><i class="fas fa-list"></i> My Orders</a>
+            <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="cart-card">
+            <div class="cart-header">
+                <h2>Your Shopping Cart</h2>
+                <p>Review your items before checkout</p>
+            </div>
+            
+            <div class="cart-content">
+                {% if cart_items %}
+                    {% for item in cart_items %}
+                        <div class="cart-item">
+                            <div class="item-details">
+                                <div class="item-name">{{ item.laptop_name }}</div>
+                                <div class="item-specs">
+                                    <strong>CPU:</strong> {{ item.cpu }} | 
+                                    <strong>RAM:</strong> {{ item.ram }} | 
+                                    <strong>Storage:</strong> {{ item.storage }}
+                                </div>
+                                <div class="item-price">${{ "%.2f"|format(item.price_to_sell) }}</div>
+                            </div>
+                            <div class="item-actions">
+                                <a href="{{ url_for('remove_from_cart', laptop_id=item.id) }}" class="remove-btn">
+                                    <i class="fas fa-trash"></i> Remove
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+
+                    <div class="cart-summary">
+                        <div class="total-row">
+                            <span class="total-label">Total Amount:</span>
+                            <span class="total-amount">${{ "%.2f"|format(total_amount) }}</span>
+                        </div>
+
+                        <form method="post" action="{{ url_for('checkout') }}" class="checkout-form">
+                            <div class="form-group">
+                                <label for="notes">Order Notes (Optional)</label>
+                                <textarea name="notes" id="notes" placeholder="Any special instructions or notes for your order..."></textarea>
+                            </div>
+                            
+                            <button type="submit" class="checkout-btn">
+                                <i class="fas fa-credit-card"></i> Place Order (${{ "%.2f"|format(total_amount) }})
+                            </button>
+                        </form>
+                    </div>
+                {% else %}
+                    <div class="empty-cart">
+                        <i class="fas fa-shopping-cart"></i>
+                        <h3>Your cart is empty</h3>
+                        <p>Add some laptops to your cart to get started!</p>
+                        <a href="{{ url_for('guest_shop') }}" class="shop-btn">
+                            <i class="fas fa-laptop"></i> Browse Laptops
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
