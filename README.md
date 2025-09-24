@@ -1,6 +1,26 @@
-# Laptop Inventory Management System v1.1
+# Laptop Inventory Management System v1.2b (Beta)
 
-A web-based tool I built for managing laptop inventory, spare parts, sales, and warranty tracking. Uses Flask and Docker, stores everything in a database so it works reliably across different computers.
+A web-based tool for managing laptop inventory, spare parts, sales, warranty tracking, and now customer order management. Uses Flask and Docker, stores everything in a database so it works reliably across different computers.
+
+## 🚀 New in v1.2b (Beta)
+
+- **Guest & Admin Modes:**  
+  - Customers (guests) can browse your store’s current stock without logging in.
+  - Admins log in to manage inventory, orders, sales, and more.
+
+- **Order System:**  
+  - Guests can add multiple laptops to a cart and place an order.
+  - Admins can view, confirm, reject, and process orders.
+  - Orders move through statuses: unconfirmed, confirmed, in progress, completed.
+  - Admins can revert completed sales back to orders if needed.
+
+- **Order Tracking:**  
+  - Guests can check their order status by email.
+
+- **(Coming Soon)**  
+  - Customers will be able to "build" a laptop with available spare parts.
+
+---
 
 ![Main Dashboard](docs/inventory.png)
 *Main inventory view with all laptops and their details*
@@ -40,6 +60,7 @@ Track warranties for sold laptops with smart countdown timers. Shows **196 days 
 - Multiple photos per laptop stored in the database
 - When you bought it, when you sold it, profit margins
 - Warranty periods with automatic countdown and color alerts
+- **Order management and tracking for customers and admins** 🚀
 - Search through everything quickly
 
 ### Handle Spare Parts
@@ -49,7 +70,16 @@ Keep track of RAM sticks and storage drives separately, then link them to laptop
 Select multiple laptops and delete or duplicate them all at once. The duplicate feature creates copies with new serial numbers and adds "(Copy)" to the name.
 
 ### Sales & Warranty Management
-Mark laptops as sold and they move to a separate "completed sales" section. Add warranties to sold laptops and track them with color-coded timers. See which warranties are expiring soon.
+- Mark laptops as sold and they move to a separate "completed sales" section.
+- Add warranties to sold laptops and track them with color-coded timers.
+- See which warranties are expiring soon.
+- **Revert completed sales back to orders if needed.**
+
+### Order Management (NEW)
+- Guests can add multiple laptops to a cart and place an order.
+- Admins can view, confirm, reject, and process orders.
+- Orders are split into unconfirmed and confirmed sections for easy management.
+- Guests can check their order status by email.
 
 ## Why I Built This
 
@@ -100,6 +130,7 @@ python app/app.py
 - **Spare parts tracking**: Know exactly what components you have and where they're installed
 - **Profit calculations**: See exactly how much money you're making
 - **Warranty tracking**: Color-coded countdown timers for customer warranties
+- **Order management**: Guests can order laptops, admins can manage orders
 - **No dependencies**: Runs entirely from the database file, easy to backup
 
 ## Who This Is For
@@ -111,7 +142,15 @@ python app/app.py
 
 ## Version History
 
-### v1.1 (Latest) - Warranty Tracking
+### v1.2b (Beta) - Guest/Admin Modes & Order System
+- Guest portal for customers to browse and order laptops (no login required)
+- Admin login for full inventory and order management
+- Multi-laptop cart and order checkout for guests
+- Admin order approval workflow (confirm, reject, start, finish, revert)
+- Order tracking for guests by email
+- Bugfixes and UI improvements
+
+### v1.1 - Warranty Tracking
 - Complete warranty management system for sold laptops
 - Color-coded warranty countdown timers (green/orange/red)
 - Dedicated "Ongoing Warranties" page
