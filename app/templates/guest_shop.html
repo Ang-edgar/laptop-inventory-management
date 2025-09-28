@@ -66,7 +66,7 @@
                     <div class="mt-auto">
                         <div class="d-flex justify-content-between align-items-center">
                             <div class="laptop-price">
-                                ₱{{ "{:.2f}".format(laptop.price_to_sell) }}
+                                ${{ "{:.2f}".format(laptop.price_to_sell) }}
                             </div>
                             <a href="{{ url_for('add_to_cart', laptop_id=laptop.id) }}" class="btn btn-success">
                                 <i class="fas fa-cart-plus"></i> Add to Cart
