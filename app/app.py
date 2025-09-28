@@ -1125,7 +1125,7 @@ def guest_shop():
 
 @app.route("/add_to_cart/<int:laptop_id>")
 def add_to_cart(laptop_id):
-    # No login required - anyone can add to cart
+    # No login required - anyone can add to cart (just like a McDonald's kiosk)
     
     # Initialize cart if not exists
     if 'cart' not in session:
