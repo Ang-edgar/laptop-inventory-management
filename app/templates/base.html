@@ -712,6 +712,11 @@
                         <strong style="color: white;">{{ session.username or 'Admin' }}</strong>
                     </div>
                 </li>
+                                <li>
+                    <a href="{{ url_for('settings') }}" class="{% if request.path == '/settings' %}active{% endif %}">
+                        <i class="fas fa-cog"></i> Settings
+                    </a>
+                </li>
                 <li style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
                     <a href="{{ url_for('logout') }}" class="logout-btn"
                        onclick="return confirm('Are you sure you want to logout?')">

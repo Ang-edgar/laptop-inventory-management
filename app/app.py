@@ -3,15 +3,20 @@ import sqlite3
 import datetime
 import csv
 import io
-import os  # This was missing!
+import os
 from werkzeug.utils import secure_filename
 from functools import wraps
 from datetime import datetime
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
+import io
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
 UPLOAD_FOLDER = os.path.join("static", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # For testing only, allows HTTP (not HTTPS)
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
@@ -555,12 +560,6 @@ def export():
         writer.writerow([laptop[key] for key in laptop.keys()])
     output.seek(0)
     return send_file(io.BytesIO(output.getvalue().encode()), mimetype="text/csv", as_attachment=True, download_name="laptops.csv")
-
-# --- Settings page ---
-@app.route("/settings")
-@admin_required
-def settings():
-    return render_template("settings.html")
 
 # --- Reset data ---
 @app.route("/reset_data", methods=["POST"])
@@ -1470,6 +1469,100 @@ def delete_order(order_id):
     
     flash('Order deleted and items returned to inventory.', 'success')
     return redirect(url_for('admin_orders'))
+
+@app.route("/settings")
+@admin_required
+def settings():
+    creds_missing = not os.path.exists(GOOGLE_CLIENT_SECRETS)
+    return render_template("settings.html", creds_missing=creds_missing)
+
+# --- Google Drive Integration ---
+
+GOOGLE_CLIENT_SECRETS = os.path.join(os.path.dirname(__file__), "credentials.json")
+SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+
+def get_google_credentials():
+    creds = session.get("google_creds")
+    if not creds:
+        return None
+    from google.oauth2.credentials import Credentials
+    return Credentials(**creds)
+
+@app.route("/google_drive_login")
+def google_drive_login():
+    flow = Flow.from_client_secrets_file(
+        GOOGLE_CLIENT_SECRETS,
+        scopes=SCOPES,
+        redirect_uri=url_for("google_drive_callback", _external=True),
+    )
+    auth_url, state = flow.authorization_url(access_type="offline", include_granted_scopes="true")
+    session["state"] = state
+    return redirect(auth_url)
+
+@app.route("/google_drive_callback")
+def google_drive_callback():
+    state = session.get("state")
+    flow = Flow.from_client_secrets_file(
+        GOOGLE_CLIENT_SECRETS,
+        scopes=SCOPES,
+        state=state,
+        redirect_uri=url_for("google_drive_callback", _external=True),
+    )
+    flow.fetch_token(authorization_response=request.url)
+    creds = flow.credentials
+    session["google_creds"] = {
+        "token": creds.token,
+        "refresh_token": creds.refresh_token,
+        "token_uri": creds.token_uri,
+        "client_id": creds.client_id,
+        "client_secret": creds.client_secret,
+        "scopes": creds.scopes,
+    }
+    flash("Google Drive connected!", "success")
+    return redirect(url_for("settings"))
+
+@app.route("/google_drive_upload")
+def google_drive_upload():
+    creds = get_google_credentials()
+    if not creds:
+        flash("Please connect your Google Drive first.", "danger")
+        return redirect(url_for("settings"))
+    db_path = os.environ.get('DB_PATH', 'data/laptops.db')
+    if not os.path.exists(db_path):
+        flash(f"Database file not found at {db_path}.", "danger")
+        return redirect(url_for("settings"))
+    service = build("drive", "v3", credentials=creds)
+    file_metadata = {"name": "laptops.db"}
+    media = MediaFileUpload(db_path, mimetype="application/x-sqlite3")
+    file = service.files().create(body=file_metadata, media_body=media, fields="id").execute()
+    flash("Database uploaded to Google Drive!", "success")
+    return redirect(url_for("settings"))
+
+@app.route("/google_drive_download")
+def google_drive_download():
+    creds = get_google_credentials()
+    if not creds:
+        flash("Please connect your Google Drive first.", "danger")
+        return redirect(url_for("settings"))
+    db_path = os.environ.get('DB_PATH', 'data/laptops.db')
+    service = build("drive", "v3", credentials=creds)
+    # Find the file named 'laptops.db'
+    results = service.files().list(q="name='laptops.db'", fields="files(id, name)").execute()
+    items = results.get("files", [])
+    if not items:
+        flash("No laptops.db found in your Google Drive.", "danger")
+        return redirect(url_for("settings"))
+    file_id = items[0]["id"]
+    request_drive = service.files().get_media(fileId=file_id)
+    # Ensure the data directory exists
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    fh = io.FileIO(db_path, "wb")
+    downloader = MediaIoBaseDownload(fh, request_drive)
+    done = False
+    while not done:
+        status, done = downloader.next_chunk()
+    flash("Database downloaded from Google Drive!", "success")
+    return redirect(url_for("settings"))
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

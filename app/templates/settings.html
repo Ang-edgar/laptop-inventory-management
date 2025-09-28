@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 2rem auto;">
+    <div class="card-header">
+        <h3><i class="fab fa-google-drive"></i> Google Drive Sync</h3>
+    </div>
+    <div class="card-body">
+        {% if creds_missing %}
+            <div class="alert alert-danger mb-2">
+                <strong>Google Drive integration requires a <code>credentials.json</code> file.</strong><br>
+                To enable this feature:<br>
+                1. Go to <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>.<br>
+                2. Go to APIs & Services > Credentials.<br>
+                3. Click Create Credentials > OAuth client ID.<br>
+                4. Choose "Desktop app" (recommended for local Flask apps) or "Web application" (if deploying online).<br>
+                See the README for details.
+            </div>
+        {% endif %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} mb-2">{{ message|safe }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% if session.google_creds and not creds_missing %}
+            <p>
+                <span class="badge bg-success">Google Drive Connected</span>
+            </p>
+            <a href="{{ url_for('google_drive_upload') }}" class="btn btn-success mb-2">
+                <i class="fas fa-upload"></i> Upload Database to Drive
+            </a>
+            <a href="{{ url_for('google_drive_download') }}" class="btn btn-info mb-2">
+                <i class="fas fa-download"></i> Download Database from Drive
+            </a>
+        {% elif not creds_missing %}
+            <p>
+                <span class="badge bg-secondary">Google Drive Not Connected</span>
+            </p>
+            <a href="{{ url_for('google_drive_login') }}" class="btn btn-primary mb-2">
+                <i class="fab fa-google-drive"></i> Connect Google Drive
+            </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

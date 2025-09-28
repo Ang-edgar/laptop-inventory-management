@@ -1,6 +1,6 @@
-# Laptop Inventory Management System v1.2b (Beta)
+# Laptop Inventory Management System v1.21b (Beta)
 
-A web-based tool for managing laptop inventory, spare parts, sales, warranty tracking, and now customer order management. Uses Flask and Docker, stores everything in a database so it works reliably across different computers.
+A web-based tool for managing laptop inventory, spare parts, sales, warranty tracking, customer order management, and now **Google Drive cloud sync**. Uses Flask and Docker, stores everything in a database so it works reliably across different computers.
 
 ## 🚀 New in v1.2b (Beta)
 
@@ -17,8 +17,10 @@ A web-based tool for managing laptop inventory, spare parts, sales, warranty tra
 - **Order Tracking:**  
   - Guests can check their order status by email.
 
-- **(Coming Soon)**  
-  - Customers will be able to "build" a laptop with available spare parts.
+- **Google Drive Sync (NEW in v1.21b):**
+  - Admins can connect their own Google Drive account in the Settings page.
+  - Upload/download the database file (`laptops.db`) to/from Google Drive for easy backup and syncing between computers.
+  - Each user must provide their own `credentials.json` (see below).
 
 ---
 
@@ -46,6 +48,9 @@ A web-based tool for managing laptop inventory, spare parts, sales, warranty tra
 ![Bulk Operations](docs/bulk_selection.png)
 *Selecting multiple laptops for bulk operations like deleting and duplicating*
 
+[Google Drive Connect](docs/bulk_selection.png)
+*Connect your google account to sync your database(new in v1.21b)*
+
 ## What It Does
 
 ### Smart Serial Numbers
@@ -61,6 +66,7 @@ Track warranties for sold laptops with smart countdown timers. Shows **196 days 
 - When you bought it, when you sold it, profit margins
 - Warranty periods with automatic countdown and color alerts
 - **Order management and tracking for customers and admins** 🚀
+- **Google Drive cloud sync for database backup and sharing**
 - Search through everything quickly
 
 ### Handle Spare Parts
@@ -81,6 +87,32 @@ Select multiple laptops and delete or duplicate them all at once. The duplicate 
 - Orders are split into unconfirmed and confirmed sections for easy management.
 - Guests can check their order status by email.
 
+### Google Drive Sync (NEW)
+- Go to **Settings** in the admin sidebar.
+- Connect your Google Drive account (OAuth login).
+- Upload/download the database file for backup or to sync between computers.
+- **Each user must provide their own `credentials.json` file** (see below).
+
+## How to Enable Google Drive Sync
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/).
+2. Create a project, enable **Google Drive API**.
+3. Go to **APIs & Services > Credentials**.
+4. Click **Create Credentials > OAuth client ID**.
+5. Choose **Web application**
+6. Add URI: http://127.0.0.1:5000/google_drive_callback
+7. Go to Oauth consent screen > Audience > Test Users > Add the email you want to use. If you don't do this, you might get an error (Although you can do this later).
+8. Download the `credentials.json` file. (rename the file to "credentials.json)
+9. Place `credentials.json` in the `/app` folder (next to `app.py`).
+10. **Do NOT commit `credentials.json` to git!**  
+   Add it to your `.gitignore`:
+   ```
+   credentials.json
+   ```
+10. Each user must repeat these steps to use their own Google Drive account.
+
+If `credentials.json` is missing, the Settings page will show instructions.
+
 ## Why I Built This
 
 I buy, repair, and sell laptops as a side business. Existing solutions were either too complicated, too expensive, or didn't handle images properly. I wanted something that:
@@ -91,20 +123,7 @@ I buy, repair, and sell laptops as a side business. Existing solutions were eith
 - Handles spare parts and upgrades
 - Actually calculates profits correctly
 - Tracks customer warranties so I know when they expire
-
-## How It Works
-
-### Database Design
-Everything is stored in SQLite with proper relationships. Images are stored as binary data in the database, so they can't get lost when you move the database file around.
-
-### User Interface
-Clean design with a blue sidebar for navigation. Uses real buttons and forms, not fancy JavaScript frameworks that break. Responsive so it works on tablets too.
-
-### Serial Numbers
-The system looks at the laptop name (like "Dell Latitude 5400") and figures out it's a Dell, then generates DE092501 for the first Dell added in September 2025. Much better than random IDs.
-
-### Warranty System
-When you sell a laptop, you can add a warranty period. The system calculates days remaining and shows them with color coding - green for plenty of time, orange when getting close, red when almost expired.
+- **Lets me backup and sync my database easily using Google Drive**
 
 ## Installation
 
@@ -118,7 +137,7 @@ Open http://localhost:5000 in your browser.
 
 ### Without Docker
 ```bash
-pip install flask werkzeug
+pip install flask werkzeug google-api-python-client google-auth-httplib2 google-auth-oauthlib
 python app/app.py
 ```
 
@@ -131,6 +150,7 @@ python app/app.py
 - **Profit calculations**: See exactly how much money you're making
 - **Warranty tracking**: Color-coded countdown timers for customer warranties
 - **Order management**: Guests can order laptops, admins can manage orders
+- **Google Drive sync**: Backup and share your database between computers
 - **No dependencies**: Runs entirely from the database file, easy to backup
 
 ## Who This Is For
@@ -142,12 +162,13 @@ python app/app.py
 
 ## Version History
 
-### v1.2b (Beta) - Guest/Admin Modes & Order System
+### v1.2b (Beta) - Guest/Admin Modes, Order System & Google Drive Sync
 - Guest portal for customers to browse and order laptops (no login required)
 - Admin login for full inventory and order management
 - Multi-laptop cart and order checkout for guests
 - Admin order approval workflow (confirm, reject, start, finish, revert)
 - Order tracking for guests by email
+- **Google Drive cloud sync for database backup and sharing**
 - Bugfixes and UI improvements
 
 ### v1.1 - Warranty Tracking
