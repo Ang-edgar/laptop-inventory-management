@@ -44,8 +44,10 @@ A web-based tool for managing laptop inventory, spare parts, sales, warranty tra
 ---
 
 ![Admin and Guest](docs/1.png)
-![Main Inventory] (docs/2.png)
-![Orders] (docs/3.png)
+
+![Main Inventory](docs/2.png)
+
+![Orders](docs/3.png)
 
 ![Spare Parts Pricing](docs/spareparts_pricing.png)
 *NEW: Spare parts with individual pricing and inventory management*
@@ -74,7 +76,7 @@ A web-based tool for managing laptop inventory, spare parts, sales, warranty tra
 ![Bulk Operations](docs/bulk_selection.png)
 *Selecting multiple laptops for bulk operations like deleting and duplicating*
 
-[Google Drive Connect](docs/google_drive_connect.png)
+![Google Drive Connect](docs/google_drive_connect.png)
 *Connect your google account to sync your database(new in v1.21b)*
 
 ## What It Does
