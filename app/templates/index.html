@@ -63,7 +63,28 @@
                     {% for laptop in laptops %}
                     <tr>
                         <td>{{ loop.index }}</td>
-                        <td>{{ laptop.serial_number or laptop.id }}</td>
+                        <!-- Update the Serial Number cell with tooltips -->
+                        <td>
+                            {% set serial = laptop.serial_number or laptop.id|string %}
+                            {% set brand_prefix = serial[:2]|upper %}
+                            {% set brand_name = {
+                                'DE': 'Dell',
+                                'HP': 'HP',
+                                'AP': 'Apple',
+                                'MA': 'Apple Mac',
+                                'TH': 'ThinkPad',
+                                'AS': 'ASUS',
+                                'AC': 'Acer',
+                                'LE': 'Lenovo',
+                                'TO': 'Toshiba',
+                                'SA': 'Samsung',
+                                'MS': 'Microsoft Surface'
+                            }.get(brand_prefix, 'Unknown Brand') %}
+                            
+                            <div class="serial-number">
+                                <span class="brand-prefix brand-{{ brand_prefix.lower() }}" title="{{ brand_name }}">{{ brand_prefix }}</span><span class="serial-suffix">{{ serial[2:] }}</span>
+                            </div>
+                        </td>
                         <td>
                             {% if laptop_has_images[laptop.id] %}
                                 <img src="{{ url_for('serve_image', laptop_id=laptop.id) }}" alt="Thumbnail" style="max-width:48px; max-height:48px; border-radius:6px;">
@@ -74,16 +95,27 @@
                         <td>{{ laptop.laptop_name }}</td>
                         <td>{{ laptop.cpu }}</td>
                         <td>
-                            {{ laptop.ram }}
-                            {% if laptop_spare_counts[laptop.id]['ram'] > 0 %}
-                                <span style="color: #3b82f6;">(+{{ laptop_spare_counts[laptop.id]['ram'] }})</span>
-                            {% endif %}
+                            <div class="spec-cell">
+                                {% if laptop.ram_type %}
+                                    {{ laptop.ram }} <span class="spec-type">{{ laptop.ram_type }}</span>
+                                {% else %}
+                                    {{ laptop.ram }}
+                                {% endif %}
+                                {% if laptop_spare_counts[laptop.id]['ram'] > 0 %}
+                                    <span class="upgrade-count">(+{{ laptop_spare_counts[laptop.id]['ram'] }})</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td>
-                            {{ laptop.storage }}
-                            {% if laptop_spare_counts[laptop.id]['storage'] > 0 %}
-                                <span style="color: #3b82f6;">(+{{ laptop_spare_counts[laptop.id]['storage'] }})</span>
-                            {% endif %}
+                            <div class="spec-cell">
+                                {{ laptop.storage }}
+                                {% if laptop.storage_type %}
+                                    <span class="spec-type">{{ laptop.storage_type }}</span>
+                                {% endif %}
+                                {% if laptop_spare_counts[laptop.id]['storage'] > 0 %}
+                                    <span class="upgrade-count">(+{{ laptop_spare_counts[laptop.id]['storage'] }})</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td>{{ laptop.os }}</td>
                         <td>{{ laptop.notes }}</td>
@@ -93,10 +125,20 @@
                         <td>${{ "%.2f"|format(laptop.price_to_sell - (laptop.price_bought + laptop.fees)) }}</td>
                         <td>{{ laptop.last_edited }}</td>
                         <td>
-                            <a href="{{ url_for('edit', laptop_id=laptop.id) }}" class="btn btn-sm btn-primary">Edit</a>
-                            <a href="{{ url_for('delete', laptop_id=laptop.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
-                            <a href="{{ url_for('mark_sold', laptop_id=laptop.id) }}" class="btn btn-sm btn-success">Mark Sold</a>
-                            <a href="{{ url_for('laptop_detail', laptop_id=laptop.id) }}" class="btn btn-sm btn-info">Details</a>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('edit', laptop_id=laptop.id) }}" class="btn btn-sm btn-primary action-btn">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                                <a href="{{ url_for('delete', laptop_id=laptop.id) }}" class="btn btn-sm btn-danger action-btn" onclick="return confirm('Are you sure?')">
+                                    <i class="fas fa-trash"></i> Delete
+                                </a>
+                                <a href="{{ url_for('mark_sold', laptop_id=laptop.id) }}" class="btn btn-sm btn-success action-btn">
+                                    <i class="fas fa-check-circle"></i> Mark Sold
+                                </a>
+                                <a href="{{ url_for('laptop_detail', laptop_id=laptop.id) }}" class="btn btn-sm btn-info action-btn">
+                                    <i class="fas fa-eye"></i> Details
+                                </a>
+                            </div>
                         </td>
                         <td>
                             <input type="checkbox" class="laptop-select" value="{{ laptop.id }}" onchange="updateBulkActions()" 
@@ -109,6 +151,167 @@
         </div>
     </div>
 </div>
+
+<style>
+
+.spec-cell {
+    line-height: 1.3;
+}
+
+.spec-type {
+    background: #e3f2fd;
+    color: #1565c0;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.upgrade-count {
+    color: #3b82f6;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+/* Make table cells a bit taller to accommodate the extra info */
+table td {
+    padding: 10px 8px;
+    vertical-align: middle;
+}
+
+/* NEW: Serial Number Brand Styling */
+.serial-number {
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.brand-prefix {
+    background: rgba(30, 136, 229, 0.1);
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+/* Brand-specific colors */
+.brand-de { background: rgba(30, 136, 229, 0.1); color: #1e88e5; }
+.brand-hp { background: rgba(0, 188, 212, 0.1); color: #00bcd4; }
+.brand-ap, .brand-ma { background: rgba(117, 117, 117, 0.1); color: #757575; }
+.brand-th { background: rgba(244, 67, 54, 0.1); color: #f44336; }
+.brand-as { background: rgba(233, 30, 99, 0.1); color: #e91e63; }
+.brand-ac { background: rgba(102, 187, 106, 0.1); color: #66bb6a; }
+.brand-le { background: rgba(255, 152, 0, 0.1); color: #ff9800; }
+.brand-to { background: rgba(103, 58, 183, 0.1); color: #673ab7; }
+.brand-sa { background: rgba(63, 81, 181, 0.1); color: #3f51b5; }
+.brand-ms { background: rgba(96, 125, 139, 0.1); color: #607d8b; }
+
+/* Default for unknown brands */
+.brand-prefix:not([class*="brand-"]) {
+    background: linear-gradient(135deg, #795548, #a1887f);
+    color: white;
+    box-shadow: 0 2px 4px rgba(121, 85, 72, 0.3);
+}
+
+/* NEW: Action Buttons Styling */
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 120px;
+}
+
+.action-btn {
+    width: 100%;
+    min-width: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 6px 12px !important;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.action-btn i {
+    width: 14px;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+/* Button-specific colors */
+.btn-primary.action-btn {
+    background: linear-gradient(135deg, #2196f3, #42a5f5);
+    border-color: #1976d2;
+}
+
+.btn-primary.action-btn:hover {
+    background: linear-gradient(135deg, #1976d2, #2196f3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+.btn-danger.action-btn {
+    background: linear-gradient(135deg, #f44336, #ef5350);
+    border-color: #d32f2f;
+}
+
+.btn-danger.action-btn:hover {
+    background: linear-gradient(135deg, #d32f2f, #f44336);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+}
+
+.btn-success.action-btn {
+    background: linear-gradient(135deg, #4caf50, #66bb6a);
+    border-color: #388e3c;
+}
+
+.btn-success.action-btn:hover {
+    background: linear-gradient(135deg, #388e3c, #4caf50);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.btn-info.action-btn {
+    background: linear-gradient(135deg, #00bcd4, #4dd0e1);
+    border-color: #0097a7;
+}
+
+.btn-info.action-btn:hover {
+    background: linear-gradient(135deg, #0097a7, #00bcd4);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 188, 212, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .action-buttons {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 2px;
+    }
+    
+    .action-btn {
+        min-width: 50px;
+        font-size: 0.7rem;
+        padding: 4px 8px !important;
+    }
+    
+    .action-btn span {
+        display: none; /* Hide text on mobile, keep only icons */
+    }
+}
+
+/* Hover effect for serial numbers */
+.brand-prefix:hover {
+    transform: scale(1.05);
+    cursor: default;
+}
+</style>
 
 <script>
 function toggleSelectAll() {

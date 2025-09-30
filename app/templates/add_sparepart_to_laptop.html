@@ -1,25 +1,276 @@
 {% extends "base.html" %}
-{% block title %}Add Spare Part to Laptop{% endblock %}
+{% block title %}Add Spare Part to {{ laptop.laptop_name }}{% endblock %}
 {% block content %}
-<div class="card" style="max-width: 500px; margin: 2rem auto;">
-    <div class="card-header">
-        <h3>Add Spare Part to Laptop</h3>
-    </div>
-    <div class="card-body">
-        <form method="post">
-            <div class="form-group">
-                <label>Select Spare Part:</label>
-                <select name="sparepart_id" class="form-control" required>
-                    {% for part in spareparts %}
-                    <option value="{{ part.id }}">
-                        {{ part.part_type }} - {{ part.storage_type or part.ram_type }} ({{ part.capacity }}) [Qty: {{ part.quantity }}]
-                    </option>
-                    {% endfor %}
-                </select>
+
+<div class="header">
+    <h2>Add Spare Part to {{ laptop.laptop_name }}</h2>
+    <p>Current specs: {{ laptop.ram }} | {{ laptop.storage }}</p>
+</div>
+
+<div class="compatibility-info">
+    <div class="laptop-specs">
+        <h4><i class="fas fa-laptop"></i> Laptop Compatibility:</h4>
+        <div class="spec-list">
+            <div class="spec-item">
+                <strong>RAM Type:</strong> {{ laptop.ram_type or 'Not specified' }}
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%;">Add</button>
-        </form>
-        <a href="{{ url_for('laptop_detail', laptop_id=laptop_id) }}" class="btn btn-outline" style="width:100%;margin-top:1rem;">Back to Laptop</a>
+            <div class="spec-item">
+                <strong>Storage Type:</strong> {{ laptop.storage_type or 'Not specified' }}
+            </div>
+        </div>
     </div>
 </div>
+
+<div class="form-container">
+    <form method="POST" class="spare-part-form">
+        <div class="spare-parts-sections">
+            <!-- RAM Upgrades -->
+            {% if ram_parts %}
+            <div class="spare-part-section">
+                <h4><i class="fas fa-memory"></i> Compatible RAM Upgrades</h4>
+                <div class="parts-grid">
+                    {% for part in ram_parts %}
+                    <div class="part-card">
+                        <input type="radio" name="sparepart_id" value="{{ part.id }}" id="ram_{{ part.id }}">
+                        <label for="ram_{{ part.id }}">
+                            <div class="part-header">
+                                <strong>{{ part.capacity }} {{ part.ram_type }}</strong>
+                                <span class="price">${{ "%.2f"|format(part.price) }}</span>
+                            </div>
+                            <div class="part-details">
+                                <div>Speed: {{ part.ram_speed }}</div>
+                                <div>Stock: {{ part.quantity }} available</div>
+                                {% if part.notes %}
+                                <div class="notes">{{ part.notes }}</div>
+                                {% endif %}
+                            </div>
+                            {% if laptop.ram_type and part.ram_type == laptop.ram_type %}
+                            <div class="compatibility-badge compatible">
+                                <i class="fas fa-check"></i> Compatible
+                            </div>
+                            {% elif laptop.ram_type and part.ram_type != laptop.ram_type %}
+                            <div class="compatibility-badge incompatible">
+                                <i class="fas fa-times"></i> Incompatible
+                            </div>
+                            {% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="no-parts-message">
+                <i class="fas fa-memory"></i>
+                <p>No compatible RAM upgrades available</p>
+            </div>
+            {% endif %}
+
+            <!-- Storage Upgrades -->
+            {% if storage_parts %}
+            <div class="spare-part-section">
+                <h4><i class="fas fa-hdd"></i> Storage Upgrades</h4>
+                <div class="parts-grid">
+                    {% for part in storage_parts %}
+                    <div class="part-card">
+                        <input type="radio" name="sparepart_id" value="{{ part.id }}" id="storage_{{ part.id }}">
+                        <label for="storage_{{ part.id }}">
+                            <div class="part-header">
+                                <strong>{{ part.capacity }} {{ part.storage_type }}</strong>
+                                <span class="price">${{ "%.2f"|format(part.price) }}</span>
+                            </div>
+                            <div class="part-details">
+                                <div>Type: {{ part.storage_type }}</div>
+                                <div>Stock: {{ part.quantity }} available</div>
+                                {% if part.notes %}
+                                <div class="notes">{{ part.notes }}</div>
+                                {% endif %}
+                            </div>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="form-buttons">
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-plus"></i> Add Selected Part
+            </button>
+            <a href="{{ url_for('laptop_detail', laptop_id=laptop.id) }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<style>
+.compatibility-info {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    border: 1px solid #e9ecef;
+}
+
+.laptop-specs h4 {
+    color: #495057;
+    margin-bottom: 1rem;
+}
+
+.spec-list {
+    display: flex;
+    gap: 2rem;
+}
+
+.spec-item {
+    background: white;
+    padding: 1rem;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.spare-parts-sections {
+    margin-bottom: 2rem;
+}
+
+.spare-part-section {
+    margin-bottom: 3rem;
+}
+
+.spare-part-section h4 {
+    color: #495057;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.parts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.part-card {
+    position: relative;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.part-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+}
+
+.part-card input[type="radio"] {
+    display: none;
+}
+
+.part-card input[type="radio"]:checked + label {
+    border-color: #28a745;
+    background: #f8fff9;
+}
+
+.part-card label {
+    display: block;
+    padding: 1.5rem;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    border: none;
+    height: 100%;
+}
+
+.part-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.part-header strong {
+    font-size: 1.1rem;
+    color: #495057;
+}
+
+.price {
+    font-weight: bold;
+    color: #28a745;
+    font-size: 1.1rem;
+}
+
+.part-details {
+    color: #6c757d;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.part-details div {
+    margin-bottom: 0.25rem;
+}
+
+.notes {
+    font-style: italic;
+    color: #868e96;
+    margin-top: 0.5rem;
+}
+
+.compatibility-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.compatibility-badge.compatible {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.compatibility-badge.incompatible {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.no-parts-message {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+
+.no-parts-message i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add visual feedback for selected parts
+    const radioInputs = document.querySelectorAll('input[type="radio"][name="sparepart_id"]');
+    radioInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            // Remove selected class from all cards
+            document.querySelectorAll('.part-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Add selected class to current card
+            if (this.checked) {
+                this.closest('.part-card').classList.add('selected');
+            }
+        });
+    });
+});
+</script>
+
 {% endblock %}

@@ -29,8 +29,9 @@
             <div class="card laptop-card h-100">
                 <!-- Laptop Image -->
                 <div class="laptop-image-container">
-                    {% if laptop.image_data %}
-                    <img src="data:image/jpeg;base64,{{ laptop.image_data }}" class="card-img-top laptop-image" alt="{{ laptop.laptop_name }}">
+                    {% if laptop.primary_image_id %}
+                    <img src="{{ url_for('serve_specific_image', laptop_id=laptop.id, image_id=laptop.primary_image_id) }}" 
+                         class="card-img-top laptop-image" alt="{{ laptop.laptop_name }}">
                     {% else %}
                     <div class="no-image">
                         <i class="fas fa-laptop"></i>
@@ -64,12 +65,17 @@
 
                     <!-- Price and Action -->
                     <div class="mt-auto">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
                             <div class="laptop-price">
                                 ${{ "{:.2f}".format(laptop.price_to_sell) }}
                             </div>
-                            <a href="{{ url_for('add_to_cart', laptop_id=laptop.id) }}" class="btn btn-success">
-                                <i class="fas fa-cart-plus"></i> Add to Cart
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('guest_laptop_detail', laptop_id=laptop.id) }}" class="btn btn-outline-primary btn-sm flex-fill">
+                                <i class="fas fa-eye"></i> View & Customize
+                            </a>
+                            <a href="{{ url_for('add_to_cart', laptop_id=laptop.id) }}" class="btn btn-success btn-sm">
+                                <i class="fas fa-cart-plus"></i>
                             </a>
                         </div>
                     </div>

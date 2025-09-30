@@ -1,70 +1,247 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Add Spare Part</title>
-    {% extends "base.html" %}
-    {% block title %}Add Spare Part{% endblock %}
-    {% block content %}
-    <div class="card" style="max-width: 500px; margin: 2rem auto;">
-        <div class="card-header">
-            <h2>Add Spare Part</h2>
-        </div>
-        <div class="card-body">
-            <form method="post">
-                <div class="form-group">
-                    <label>Part Type:</label>
-                    <select name="part_type" id="part_type" onchange="toggleFields()" class="form-control">
-                        <option value="Storage">Storage</option>
-                        <option value="RAM">RAM</option>
-                    </select>
-                </div>
-                <div id="storage_fields" class="form-group" style="display:none;">
-                    <label>Storage Type:</label>
-                    <select name="storage_type" class="form-control">
-                        <option value="">Select</option>
-                        <option value="2.5&quot; HDD">2.5" HDD</option>
-                        <option value="2.5&quot; SSD">2.5" SSD</option>
-                        <option value="M.2 NVMe">M.2 NVMe</option>
-                        <option value="M.2 SATA">M.2 SATA</option>
-                    </select>
-                </div>
-                <div id="ram_fields" class="form-group" style="display:none;">
-                    <label>RAM Type:</label>
-                    <select name="ram_type" class="form-control">
-                        <option value="">Select</option>
-                        <option value="DDR3">DDR3</option>
-                        <option value="DDR4">DDR4</option>
-                    </select>
-                    <label>RAM Speed:</label>
-                    <input type="text" name="ram_speed" class="form-control" placeholder="e.g. 1600MHz">
-                </div>
-                <div class="form-group">
-                    <label>Capacity:</label>
-                    <input type="text" name="capacity" required class="form-control" placeholder="e.g. 8GB, 256GB">
-                </div>
-                <div class="form-group">
-                    <label>Quantity:</label>
-                    <input type="number" name="quantity" value="1" min="1" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label>Notes:</label>
-                    <input type="text" name="notes" class="form-control">
-                </div>
-                <button type="submit" class="btn btn-primary" style="width:100%;">Add Spare Part</button>
-            </form>
-            <a href="{{ url_for('spareparts') }}" class="btn btn-outline" style="width:100%;margin-top:1rem;">Back to Spare Parts</a>
-        </div>
-    </div>
-    <script>
-        function toggleFields() {
-            var partType = document.getElementById('part_type').value;
-            document.getElementById('storage_fields').style.display = partType === 'Storage' ? 'block' : 'none';
-            document.getElementById('ram_fields').style.display = partType === 'RAM' ? 'block' : 'none';
-        }
-        window.onload = toggleFields;
-    </script>
-    {% endblock %}
+    <title>Add New Spare Part</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+{% extends "base.html" %}
+{% block title %}Add New Spare Part{% endblock %}
+{% block content %}
+
+<div class="header">
+    <h2><i class="fas fa-plus-circle"></i> Add New Spare Part</h2>
+</div>
+
+<div class="form-container">
+    <form method="POST" class="spare-part-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="part_type">Part Type <span class="required">*</span></label>
+                <select id="part_type" name="part_type" required onchange="toggleFields()">
+                    <option value="">Select Part Type</option>
+                    <option value="RAM">RAM</option>
+                    <option value="Storage">Storage</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="capacity">Capacity <span class="required">*</span></label>
+                <input type="text" id="capacity" name="capacity" required 
+                       placeholder="e.g., 8GB, 512GB, 1TB">
+            </div>
+        </div>
+
+        <!-- RAM-specific fields -->
+        <div id="ram_fields" class="conditional-fields" style="display: none;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ram_type">RAM Type</label>
+                    <select id="ram_type" name="ram_type">
+                        <option value="">Select RAM Type</option>
+                        <option value="DDR3">DDR3</option>
+                        <option value="DDR4">DDR4</option>
+                        <option value="DDR5">DDR5</option>
+                        <option value="LPDDR3">LPDDR3</option>
+                        <option value="LPDDR4">LPDDR4</option>
+                        <option value="LPDDR5">LPDDR5</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for"ram_speed">RAM Speed</label>
+                    <input type="text" id="ram_speed" name="ram_speed" 
+                           placeholder="e.g., 2666MHz, 3200MHz">
+                </div>
+            </div>
+        </div>
+
+        <!-- Storage-specific fields -->
+        <div id="storage_fields" class="conditional-fields" style="display: none;">
+            <div class="form-group">
+                <label for="storage_type">Storage Type</label>
+                <select id="storage_type" name="storage_type">
+                    <option value="">Select Storage Type</option>
+                    <option value="HDD">HDD (Hard Disk Drive)</option>
+                    <option value="SSD">SSD (SATA)</option>
+                    <option value="NVMe">NVMe SSD</option>
+                    <option value="eMMC">eMMC</option>
+                    <option value="Hybrid">Hybrid (SSHD)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="quantity">Quantity <span class="required">*</span></label>
+                <input type="number" min="1" id="quantity" name="quantity" value="1" required>
+            </div>
+
+            <div class="form-group">
+                <label for="price">Price ($) <span class="required">*</span></label>
+                <!-- FIXED: Use default value of 0 instead of part.price -->
+                <input type="number" step="0.01" min="0" class="form-control" id="price" name="price" value="0" required>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="3" 
+                      placeholder="Any additional notes about this spare part..."></textarea>
+        </div>
+
+        <div class="form-buttons">
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-save"></i> Add Spare Part
+            </button>
+            <a href="{{ url_for('spareparts') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.spare-part-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.required {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.conditional-fields {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    margin: 1rem 0;
+}
+
+.form-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745, #34ce57);
+    color: white;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #218838, #28a745);
+    transform: translateY(-1px);
+}
+
+.btn-outline {
+    background: white;
+    color: #6c757d;
+    border: 1px solid #6c757d;
+}
+
+.btn-outline:hover {
+    background: #6c757d;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-container {
+        margin: 1rem;
+        padding: 1rem;
+    }
+}
+</style>
+
+<script>
+function toggleFields() {
+    const partType = document.getElementById('part_type').value;
+    const ramFields = document.getElementById('ram_fields');
+    const storageFields = document.getElementById('storage_fields');
+    
+    // Hide all conditional fields first
+    ramFields.style.display = 'none';
+    storageFields.style.display = 'none';
+    
+    // Show relevant fields based on selection
+    if (partType === 'RAM') {
+        ramFields.style.display = 'block';
+    } else if (partType === 'Storage') {
+        storageFields.style.display = 'block';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleFields();
+});
+</script>
+
+{% endblock %}
 </body>
 </html>

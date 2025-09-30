@@ -74,6 +74,12 @@
                         <div style="font-weight: bold;">{{ part['ram_type'] }} {{ part['ram_speed'] }}</div>
                         <div>{{ part['capacity'] }}</div>
                     {% endif %}
+
+                    <!-- Price -->
+                    <div style="margin-top: 0.5rem; font-size: 1.1rem; font-weight: bold; color: #38a169;">
+                        ${{ "%.2f"|format(part.price or 0) }}
+                    </div>
+                    
                     <div style="margin-top: 0.5rem; font-size: 0.95rem;">
                         <span style="color: #888;">Qty:</span> {{ part['quantity'] }}
                     </div>

@@ -1,61 +1,427 @@
 {% extends "base.html" %}
-{% block title %}Add Laptop{% endblock %}
+{% block title %}Add New Laptop{% endblock %}
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h3>Add New Laptop</h3>
-    </div>
-    <div class="card-body">
-    <form method="post" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="laptop_name">Laptop Name</label>
-                <input type="text" id="laptop_name" name="laptop_name" class="form-control" required>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="cpu">CPU</label>
-                    <input type="text" id="cpu" name="cpu" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="ram">RAM</label>
-                    <input type="text" id="ram" name="ram" class="form-control" required>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="storage">Storage</label>
-                    <input type="text" id="storage" name="storage" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="os">Operating System</label>
-                    <input type="text" id="os" name="os" class="form-control" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="notes">Notes</label>
-                <input type="text" id="notes" name="notes" class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="images">Upload Images</label>
-                <input type="file" id="images" name="images" accept="image/*" class="form-control" multiple>
-                <small class="form-text text-muted">You can select multiple images. The first image will be set as primary.</small>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="price_bought">Price Bought</label>
-                    <input type="number" id="price_bought" name="price_bought" class="form-control" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="price_to_sell">Price to Sell</label>
-                    <input type="number" id="price_to_sell" name="price_to_sell" class="form-control" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="fees">Fees</label>
-                    <input type="number" id="fees" name="fees" class="form-control" step="0.01" required>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add Laptop</button>
-        </form>
-    </div>
+
+<div class="header">
+    <h2>Add New Laptop</h2>
 </div>
+
+<div class="form-container">
+    <form method="POST" enctype="multipart/form-data" class="laptop-form">
+        <div class="form-group">
+            <label for="laptop_name">Laptop Name <span class="required">*</span></label>
+            <input type="text" id="laptop_name" name="laptop_name" required>
+        </div>
+
+        <div class="form-group">
+            <label for="cpu">CPU <span class="required">*</span></label>
+            <input type="text" id="cpu" name="cpu" required placeholder="e.g., Intel Core i5-8250U">
+        </div>
+
+        <!-- RAM Section -->
+        <div class="form-group">
+            <label>RAM Configuration <span class="required">*</span></label>
+            <div class="ram-config-container">
+                <div class="ram-fields-row">
+                    <div class="ram-field">
+                        <label for="ram_capacity">RAM</label>
+                        <input type="text" id="ram_capacity" name="ram_capacity" 
+                            placeholder="e.g., 8GB 2666MHz" required>
+                    </div>
+                    
+                    <div class="ram-field ram-type-field">
+                        <label for="ram_type">RAM Type <span class="required">*</span></label>
+                        <select id="ram_type" name="ram_type" required>
+                            <option value="">Select RAM Type</option>
+                            <option value="DDR3">DDR3</option>
+                            <option value="DDR4">DDR4</option>
+                            <option value="DDR5">DDR5</option>
+                            <option value="LPDDR3">LPDDR3</option>
+                            <option value="LPDDR4">LPDDR4</option>
+                            <option value="LPDDR5">LPDDR5</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="compatibility-note">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Only spare parts with matching RAM type will be compatible for upgrades</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Storage Section -->
+        <div class="form-group">
+            <label>Storage Configuration <span class="required">*</span></label>
+            <div class="storage-config-container">
+                <div class="storage-fields-row">
+                    <div class="storage-field">
+                        <label for="storage_capacity">Storage</label>
+                        <input type="text" id="storage_capacity" name="storage_capacity" 
+                            placeholder="e.g., 512GB SSD" required>
+                    </div>
+                    
+                    <div class="storage-field storage-type-field">
+                        <label for="storage_type">Storage Type</label>
+                        <select id="storage_type" name="storage_type">
+                            <option value="">Select Storage Type</option>
+                            <option value="HDD">HDD (Hard Disk Drive)</option>
+                            <option value="SSD">SSD (SATA)</option>
+                            <option value="NVMe">NVMe SSD</option>
+                            <option value="eMMC">eMMC</option>
+                            <option value="Hybrid">Hybrid (SSHD)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="compatibility-note">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Storage type helps identify compatibility for upgrades</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="os">Operating System <span class="required">*</span></label>
+            <select id="os" name="os" required>
+                <option value="">Select OS</option>
+                <option value="Windows 11">Windows 11</option>
+                <option value="Windows 10">Windows 10</option>
+                <option value="Windows 8.1">Windows 8.1</option>
+                <option value="macOS">macOS</option>
+                <option value="Ubuntu">Ubuntu</option>
+                <option value="Linux">Linux (Other)</option>
+                <option value="Chrome OS">Chrome OS</option>
+                <option value="No OS">No OS</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="price_bought">Price Bought ($)</label>
+            <input type="number" step="0.01" id="price_bought" name="price_bought" min="0">
+        </div>
+
+        <div class="form-group">
+            <label for="price_to_sell">Price to Sell ($) <span class="required">*</span></label>
+            <input type="number" step="0.01" id="price_to_sell" name="price_to_sell" min="0" required>
+        </div>
+
+        <div class="form-group">
+            <label for="fees">Fees/Expenses ($)</label>
+            <input type="number" step="0.01" id="fees" name="fees" min="0">
+        </div>
+
+        <div class="form-group">
+            <label for="images">Images</label>
+            <div class="file-drop-area" id="drop-area">
+                <div class="file-drop-content">
+                    <div class="file-drop-icon">
+                        <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                    </div>
+                    <p>Drag and drop images here or <span class="file-link">browse files</span></p>
+                    <p class="file-help">Supports PNG, JPG, JPEG, GIF. First image will be set as primary.</p>
+                </div>
+                <input type="file" name="images" id="images" multiple accept="image/*" style="display: none;">
+            </div>
+            <div class="image-preview-container" id="image-preview"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="3" placeholder="Any additional notes about this laptop..."></textarea>
+        </div>
+
+        <div class="form-buttons">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Add Laptop
+            </button>
+            <a href="{{ url_for('admin_panel') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<style>
+.header {
+    background: #007bff;
+    color: white;
+    padding: 1rem;
+    border-radius: 8px 8px 0 0;
+    text-align: center;
+}
+
+.form-container {
+    background: #f8f9fa;
+    padding: 2rem;
+    border-radius: 0 0 8px 8px;
+    border: 1px solid #e9ecef;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.required {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.ram-config-container, .storage-config-container {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    margin-top: 0.5rem;
+}
+
+.ram-fields-row, .storage-fields-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.ram-field, .storage-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.ram-field label, .storage-field label {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.ram-field input, .ram-field select, 
+.storage-field input, .storage-field select {
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.ram-type-field, .storage-type-field {
+    background: #e3f2fd;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #90caf9;
+}
+
+.compatibility-note {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #fff3cd;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border-left: 4px solid #ffc107;
+    color: #856404;
+    font-size: 0.9rem;
+}
+
+.compatibility-note i {
+    color: #ffc107;
+}
+
+/* File upload styling */
+.file-drop-area {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #fafafa;
+}
+
+.file-drop-area:hover {
+    border-color: #007bff;
+    background: #f0f8ff;
+}
+
+.file-drop-area.dragover {
+    border-color: #007bff;
+    background: #e3f2fd;
+    transform: scale(1.02);
+}
+
+.file-drop-content {
+    pointer-events: none;
+}
+
+.file-drop-icon {
+    color: #ccc;
+    margin-bottom: 15px;
+}
+
+.file-link {
+    color: #007bff;
+    text-decoration: underline;
+}
+
+.file-help {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-top: 10px;
+}
+
+.image-preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.image-preview {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8f9fa;
+}
+
+.image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-preview .primary-badge {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: #28a745;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.image-preview .remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(220, 53, 69, 0.9);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+</style>
+
+<script>
+// RAM Configuration Preview
+function updateRamPreview() {
+    const capacity = document.getElementById('ram_capacity').value;
+    const speed = document.getElementById('ram_speed').value;
+    const type = document.getElementById('ram_type').value;
+    
+    const preview = document.getElementById('ram_preview_text');
+    
+    if (capacity && speed && type) {
+        preview.innerHTML = `RAM will be displayed as: <strong>${capacity} ${speed} ${type}</strong>`;
+    } else {
+        preview.innerHTML = 'RAM will be displayed as: <strong>--</strong>';
+    }
+}
+
+// Storage Configuration Preview
+function updateStoragePreview() {
+    const capacity = document.getElementById('storage_capacity').value;
+    const type = document.getElementById('storage_type').value;
+    
+    const preview = document.getElementById('storage_preview_text');
+    
+    if (capacity && type) {
+        preview.innerHTML = `Storage will be displayed as: <strong>${capacity} ${type}</strong>`;
+    } else {
+        preview.innerHTML = 'Storage will be displayed as: <strong>--</strong>';
+    }
+}
+
+// Add event listeners
+document.getElementById('ram_capacity').addEventListener('change', updateRamPreview);
+document.getElementById('ram_speed').addEventListener('change', updateRamPreview);
+document.getElementById('ram_type').addEventListener('change', updateRamPreview);
+
+document.getElementById('storage_capacity').addEventListener('change', updateStoragePreview);
+document.getElementById('storage_type').addEventListener('change', updateStoragePreview);
+
+// File upload functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const dropArea = document.getElementById('drop-area');
+    const fileInput = document.getElementById('images');
+    const imagePreview = document.getElementById('image-preview');
+
+    dropArea.addEventListener('click', () => fileInput.click());
+
+    dropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropArea.classList.add('dragover');
+    });
+
+    dropArea.addEventListener('dragleave', () => {
+        dropArea.classList.remove('dragover');
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        fileInput.files = files;
+        handleFiles(files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+        imagePreview.innerHTML = '';
+        
+        Array.from(files).forEach((file, index) => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.className = 'image-preview';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" alt="Preview">
+                        ${index === 0 ? '<div class="primary-badge">PRIMARY</div>' : ''}
+                    `;
+                    imagePreview.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+});
+</script>
+
 {% endblock %}

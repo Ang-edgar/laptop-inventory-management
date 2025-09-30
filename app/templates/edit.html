@@ -1,121 +1,649 @@
 {% extends "base.html" %}
-{% block title %}Edit Laptop{% endblock %}
+{% block title %}Edit {{ laptop.laptop_name }}{% endblock %}
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h3>Edit Laptop</h3>
-    </div>
-    <div class="card-body">
-    <form method="post" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="laptop_name">Laptop Name</label>
-                <input type="text" id="laptop_name" name="laptop_name" class="form-control" value="{{ laptop.laptop_name }}" required>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="cpu">CPU</label>
-                    <input type="text" id="cpu" name="cpu" class="form-control" value="{{ laptop.cpu }}" required>
-                </div>
-                <div class="form-group">
-                    <label for="ram">RAM</label>
-                    <input type="text" id="ram" name="ram" class="form-control" value="{{ laptop.ram }}" required>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="storage">Storage</label>
-                    <input type="text" id="storage" name="storage" class="form-control" value="{{ laptop.storage }}" required>
-                </div>
-                <div class="form-group">
-                    <label for="os">Operating System</label>
-                    <input type="text" id="os" name="os" class="form-control" value="{{ laptop.os }}" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="notes">Notes</label>
-                <input type="text" id="notes" name="notes" class="form-control" value="{{ laptop.notes }}">
-            </div>
-            
-            <!-- Current Images Section -->
-            <div class="form-group">
-                <label>Current Images:</label><br>
-                {% if images %}
-                    <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
-                        {% for image in images %}
-                        <div style="display: flex; flex-direction: column; border: 2px solid {% if image.is_primary %}#3b82f6{% else %}#e5e7eb{% endif %}; border-radius: 8px; padding: 5px; width: 130px; height: 160px; position: relative;">
-                            <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                                <img src="{{ url_for('serve_specific_image', laptop_id=laptop.id, image_id=image.id) }}" 
-                                     alt="Laptop Image" 
-                                     style="max-width: 120px; max-height: 120px; border-radius: 4px; object-fit: cover;">
-                            </div>
-                            {% if image.is_primary %}
-                                <span style="position: absolute; top: -8px; left: -8px; background: #3b82f6; color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem;">PRIMARY</span>
-                            {% endif %}
-                            <div style="display: flex; justify-content: center; gap: 5px; margin-top: 5px;">
-                                {% if not image.is_primary %}
-                                    <button type="button" class="btn btn-sm btn-info" title="Set as Primary" onclick="setPrimaryImage({{ laptop.id }}, {{ image.id }})" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 28px; padding: 0;">
-                                        <i class="fas fa-star" style="margin: 0; padding: 0;"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-danger" title="Delete Image" onclick="deleteImage({{ laptop.id }}, {{ image.id }})" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 28px; padding: 0;">
-                                        <i class="fas fa-trash" style="margin: 0; padding: 0;"></i>
-                                    </button>
-                                {% else %}
-                                    <button type="button" class="btn btn-sm btn-danger" title="Delete Image" onclick="deleteImage({{ laptop.id }}, {{ image.id }})" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 28px; padding: 0;">
-                                        <i class="fas fa-trash" style="margin: 0; padding: 0;"></i>
-                                    </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                        
-                        <!-- Add Image Button -->
-                        <div style="display: flex; align-items: center; justify-content: center; border: 2px dashed #cbd5e1; border-radius: 8px; padding: 5px; min-width: 130px; min-height: 130px; cursor: pointer; background: #f8fafc; transition: all 0.2s;" onclick="document.getElementById('singleImageUpload').click();">
-                            <div style="text-align: center; color: #64748b;">
-                                <i class="fas fa-plus" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
-                                <p style="margin: 0; font-size: 0.9rem;">Add Image</p>
-                            </div>
-                        </div>
-                    </div>
-                {% else %}
-                    <div style="text-align: center; padding: 3rem 2rem; color: #6b7280; border: 2px dashed #e5e7eb; border-radius: 8px; cursor: pointer; background: #f8fafc; transition: all 0.2s;" onclick="document.getElementById('singleImageUpload').click();">
-                        <i class="fas fa-images" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                        <h4 style="margin-bottom: 0.5rem;">Upload Images</h4>
-                        <p style="margin-bottom: 1rem;">Click to browse and select images for this laptop</p>
-                        <div style="display: inline-block; background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600;">
-                            <i class="fas fa-plus"></i> Browse Images
-                        </div>
-                    </div>
-                {% endif %}
-                
-                <!-- Hidden file input for single image upload -->
-                <input type="file" id="singleImageUpload" accept="image/*" style="display: none;" onchange="uploadSingleImage(this)">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="price_bought">Price Bought</label>
-                    <input type="number" id="price_bought" name="price_bought" class="form-control" step="0.01" value="{{ laptop.price_bought }}" required>
-                </div>
-                <div class="form-group">
-                    <label for="price_to_sell">Price to Sell</label>
-                    <input type="number" id="price_to_sell" name="price_to_sell" class="form-control" step="0.01" value="{{ laptop.price_to_sell }}" required>
-                </div>
-                <div class="form-group">
-                    <label for="fees">Fees</label>
-                    <input type="number" id="fees" name="fees" class="form-control" step="0.01" value="{{ laptop.fees }}" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" name="sold" {% if laptop.sold %}checked{% endif %}> Sold
-                </label>
-            </div>
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <button type="submit" class="btn btn-primary" style="flex: 1; height: 44px;"><i class="fas fa-save"></i> Save Changes</button>
-                <a href="{{ url_for('admin_panel') }}" class="btn btn-outline" style="flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; text-decoration: none;"><i class="fas fa-arrow-left"></i> Back to Inventory</a>
-            </div>
-        </form>
-    </div>
+
+<div class="header">
+    <h2><i class="fas fa-edit"></i> Edit {{ laptop.laptop_name }}</h2>
 </div>
+
+<div class="form-container">
+    <form method="POST" enctype="multipart/form-data" class="laptop-form">
+        <div class="form-group">
+            <label for="laptop_name">Laptop Name <span class="required">*</span></label>
+            <input type="text" id="laptop_name" name="laptop_name" value="{{ laptop.laptop_name }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="cpu">CPU <span class="required">*</span></label>
+            <input type="text" id="cpu" name="cpu" value="{{ laptop.cpu }}" required placeholder="e.g., Intel Core i5-8250U">
+        </div>
+
+        <!-- RAM Section -->
+        <div class="form-group">
+            <label>RAM Configuration <span class="required">*</span></label>
+            <div class="ram-config-container">
+                <div class="ram-fields-row">
+                    <div class="ram-field">
+                        <label for="ram_capacity">RAM</label>
+                        <input type="text" id="ram_capacity" name="ram_capacity" 
+                               value="{{ laptop.ram or '' }}" 
+                               placeholder="e.g., 8GB 2666MHz" required>
+                    </div>
+                    
+                    <div class="ram-field ram-type-field">
+                        <label for="ram_type">RAM Type <span class="required">*</span></label>
+                        <select id="ram_type" name="ram_type" required>
+                            <option value="">Select RAM Type</option>
+                            <option value="DDR3" {{ 'selected' if laptop.ram_type == 'DDR3' }}>DDR3</option>
+                            <option value="DDR4" {{ 'selected' if laptop.ram_type == 'DDR4' }}>DDR4</option>
+                            <option value="DDR5" {{ 'selected' if laptop.ram_type == 'DDR5' }}>DDR5</option>
+                            <option value="LPDDR3" {{ 'selected' if laptop.ram_type == 'LPDDR3' }}>LPDDR3</option>
+                            <option value="LPDDR4" {{ 'selected' if laptop.ram_type == 'LPDDR4' }}>LPDDR4</option>
+                            <option value="LPDDR5" {{ 'selected' if laptop.ram_type == 'LPDDR5' }}>LPDDR5</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="current-config">
+                    <strong>Current RAM Type:</strong> {{ laptop.ram_type or 'Not specified' }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Storage Section -->
+        <div class="form-group">
+            <label>Storage Configuration <span class="required">*</span></label>
+            <div class="storage-config-container">
+                <div class="storage-fields-row">
+                    <div class="storage-field">
+                        <label for="storage_capacity">Storage</label>
+                        <input type="text" id="storage_capacity" name="storage_capacity" 
+                               value="{{ laptop.storage or '' }}" 
+                               placeholder="e.g., 512GB NVMe SSD" required>
+                    </div>
+                    
+                    <div class="storage-field storage-type-field">
+                        <label for="storage_type">Storage Type</label>
+                        <select id="storage_type" name="storage_type">
+                            <option value="">Select Storage Type</option>
+                            <option value="HDD" {{ 'selected' if laptop.storage_type == 'HDD' }}>HDD (Hard Disk Drive)</option>
+                            <option value="SSD" {{ 'selected' if laptop.storage_type == 'SSD' }}>SSD (SATA)</option>
+                            <option value="NVMe" {{ 'selected' if laptop.storage_type == 'NVMe' }}>NVMe SSD</option>
+                            <option value="eMMC" {{ 'selected' if laptop.storage_type == 'eMMC' }}>eMMC</option>
+                            <option value="Hybrid" {{ 'selected' if laptop.storage_type == 'Hybrid' }}>Hybrid (SSHD)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="current-config">
+                    <strong>Current Storage Type:</strong> {{ laptop.storage_type or 'Not specified' }}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="os">Operating System <span class="required">*</span></label>
+            <select id="os" name="os" required>
+                <option value="">Select OS</option>
+                <option value="Windows 11" {{ 'selected' if laptop.os == 'Windows 11' }}>Windows 11</option>
+                <option value="Windows 10" {{ 'selected' if laptop.os == 'Windows 10' }}>Windows 10</option>
+                <option value="Windows 8.1" {{ 'selected' if laptop.os == 'Windows 8.1' }}>Windows 8.1</option>
+                <option value="macOS" {{ 'selected' if laptop.os == 'macOS' }}>macOS</option>
+                <option value="Ubuntu" {{ 'selected' if laptop.os == 'Ubuntu' }}>Ubuntu</option>
+                <option value="Linux" {{ 'selected' if laptop.os == 'Linux' or 'Linux' in (laptop.os or '') }}>Linux (Other)</option>
+                <option value="Chrome OS" {{ 'selected' if laptop.os == 'Chrome OS' }}>Chrome OS</option>
+                <option value="No OS" {{ 'selected' if laptop.os == 'No OS' }}>No OS</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="price_bought">Price Bought ($)</label>
+            <input type="number" step="0.01" id="price_bought" name="price_bought" min="0" value="{{ laptop.price_bought or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="price_to_sell">Price to Sell ($) <span class="required">*</span></label>
+            <input type="number" step="0.01" id="price_to_sell" name="price_to_sell" min="0" value="{{ laptop.price_to_sell }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="fees">Fees/Expenses ($)</label>
+            <input type="number" step="0.01" id="fees" name="fees" min="0" value="{{ laptop.fees or '' }}">
+        </div>
+
+        <!-- Current Images Section -->
+        <div class="form-group">
+            <label for="images">Images</label>
+            {% if images %}
+                <div class="current-images-grid">
+                    {% for image in images %}
+                    <div class="image-card {{ 'primary' if image.is_primary }}">
+                        <div class="image-container">
+                            <img src="{{ url_for('serve_specific_image', laptop_id=laptop.id, image_id=image.id) }}" 
+                                 alt="Laptop Image">
+                            {% if image.is_primary %}
+                                <div class="primary-badge">PRIMARY</div>
+                            {% endif %}
+                        </div>
+                        <div class="image-actions">
+                            {% if not image.is_primary %}
+                                <button type="button" class="btn btn-sm btn-info" title="Set as Primary" onclick="setPrimaryImage({{ laptop.id }}, {{ image.id }})">
+                                    <i class="fas fa-star"></i>
+                                </button>
+                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-danger" title="Delete Image" onclick="deleteImage({{ laptop.id }}, {{ image.id }})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- Add Image Button -->
+                    <div class="add-image-card" onclick="document.getElementById('singleImageUpload').click();">
+                        <div class="add-image-content">
+                            <i class="fas fa-plus fa-2x"></i>
+                            <p>Add Image</p>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="file-drop-area" onclick="document.getElementById('singleImageUpload').click();">
+                    <div class="file-drop-content">
+                        <div class="file-drop-icon">
+                            <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                        </div>
+                        <p>Click to browse and select images for this laptop</p>
+                        <p class="file-help">Supports PNG, JPG, JPEG, GIF. First image will be set as primary.</p>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <!-- Hidden file input -->
+            <input type="file" id="singleImageUpload" accept="image/*" style="display: none;" onchange="uploadSingleImage(this)">
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="3" placeholder="Any additional notes about this laptop...">{{ laptop.notes or '' }}</textarea>
+        </div>
+
+        <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="sold" {% if laptop.sold %}checked{% endif %}>
+                <span class="checkmark"></span>
+                Mark as Sold
+            </label>
+        </div>
+
+        <div class="form-buttons">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+            <a href="{{ url_for('admin_panel') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i> Back to Inventory
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Success/Error Popup - ONLY FOR EDIT-RELATED MESSAGES -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% set edit_message_shown = false %}
+        {% for category, message in messages %}
+            <!-- Only show edit-related messages and only show the first one -->
+            {% if not edit_message_shown and ('updated' in message.lower() or 'saved' in message.lower() or 'changed' in message.lower() or 'edit' in message.lower() or 'upload' in message.lower() or 'delete' in message.lower() or 'primary' in message.lower()) %}
+                {% set edit_message_shown = true %}
+                <div id="flashMessage" class="flash-notification {{ category }}">
+                    <div class="flash-content">
+                        <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'warning' %}fa-exclamation-triangle{% else %}fa-exclamation-circle{% endif %}"></i>
+                        <span>{{ message }}</span>
+                        <button type="button" class="close-btn" onclick="closeFlash()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<style>
+.header {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 8px 8px 0 0;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header h2 {
+    margin: 0;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.form-container {
+    background: white;
+    padding: 2rem;
+    border-radius: 0 0 8px 8px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.required {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.ram-config-container, .storage-config-container {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    margin-top: 0.5rem;
+}
+
+.ram-fields-row, .storage-fields-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.ram-field, .storage-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.ram-field label, .storage-field label {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.ram-field input, .ram-field select, 
+.storage-field input, .storage-field select {
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.ram-type-field, .storage-type-field {
+    background: #e3f2fd;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #90caf9;
+}
+
+.current-config {
+    background: #e8f5e8;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border-left: 4px solid #28a745;
+    color: #155724;
+    font-size: 0.9rem;
+}
+
+/* Images Section */
+.current-images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.image-card {
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.image-card.primary {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.image-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.image-container {
+    position: relative;
+    width: 100%;
+    height: 120px;
+    overflow: hidden;
+}
+
+.image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.primary-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #3b82f6;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.image-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: #f8f9fa;
+}
+
+.image-actions .btn {
+    flex: 1;
+    padding: 0.25rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-image-card {
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+}
+
+.add-image-card:hover {
+    border-color: #007bff;
+    background: #f0f8ff;
+    transform: translateY(-2px);
+}
+
+.add-image-content {
+    text-align: center;
+    color: #64748b;
+}
+
+.add-image-content i {
+    margin-bottom: 0.5rem;
+    opacity: 0.6;
+}
+
+.add-image-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* File drop area for empty state */
+.file-drop-area {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #fafafa;
+    margin-top: 1rem;
+}
+
+.file-drop-area:hover {
+    border-color: #007bff;
+    background: #f0f8ff;
+}
+
+.file-drop-content {
+    pointer-events: none;
+}
+
+.file-drop-icon {
+    color: #ccc;
+    margin-bottom: 15px;
+}
+
+.file-help {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-top: 10px;
+}
+
+/* Checkbox styling */
+.checkbox-group {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+    margin: 0;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    margin-right: 0.5rem;
+}
+
+/* Form buttons */
+.form-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border: 1px solid #0056b3;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.btn-outline {
+    background: white;
+    color: #6c757d;
+    border: 1px solid #6c757d;
+}
+
+.btn-outline:hover {
+    background: #6c757d;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #138496;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+/* Flash notifications - ONLY FOR EDIT */
+.flash-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: slideIn 0.3s ease-out;
+    min-width: 350px;
+    max-width: 500px;
+}
+
+.flash-notification.success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.flash-notification.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.flash-notification.warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.flash-content {
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.flash-content i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    margin-left: auto;
+    font-size: 1rem;
+}
+
+.close-btn:hover {
+    opacity: 0.8;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .ram-fields-row, .storage-fields-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-container {
+        margin: 1rem;
+        padding: 1rem;
+    }
+    
+    .current-images-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+    
+    .form-buttons {
+        flex-direction: column;
+    }
+    
+    .flash-notification {
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+    }
+}
+</style>
 
 <script>
 function uploadSingleImage(input) {
@@ -124,9 +652,7 @@ function uploadSingleImage(input) {
         formData.append('image', input.files[0]);
         
         // Show loading indicator
-        const loadingDiv = document.createElement('div');
-        loadingDiv.innerHTML = '<div style="text-align: center; padding: 1rem; color: #3b82f6;"><i class="fas fa-spinner fa-spin"></i> Uploading...</div>';
-        input.parentNode.appendChild(loadingDiv);
+        showLoadingToast('Uploading image...');
         
         fetch(`/upload_single_image/{{ laptop.id }}`, {
             method: 'POST',
@@ -134,19 +660,15 @@ function uploadSingleImage(input) {
         })
         .then(response => {
             if (response.ok) {
-                // Reload the page to show the new image
                 window.location.reload();
             } else {
-                alert('Failed to upload image');
-                loadingDiv.remove();
+                showErrorToast('Failed to upload image');
             }
         })
         .catch(error => {
-            alert('Error uploading image');
-            loadingDiv.remove();
+            showErrorToast('Error uploading image');
         });
         
-        // Clear the input
         input.value = '';
     }
 }
@@ -158,14 +680,13 @@ function deleteImage(laptopId, imageId) {
         })
         .then(response => {
             if (response.ok) {
-                // Reload the page to show the updated images
                 window.location.reload();
             } else {
-                alert('Failed to delete image');
+                showErrorToast('Failed to delete image');
             }
         })
         .catch(error => {
-            alert('Error deleting image');
+            showErrorToast('Error deleting image');
         });
     }
 }
@@ -176,93 +697,64 @@ function setPrimaryImage(laptopId, imageId) {
     })
     .then(response => {
         if (response.ok) {
-            // Reload the page to show the updated primary image
             window.location.reload();
         } else {
-            alert('Failed to set primary image');
+            showErrorToast('Failed to set primary image');
         }
     })
     .catch(error => {
-        alert('Error setting primary image');
+        showErrorToast('Error setting primary image');
     });
 }
+
+function closeFlash() {
+    const flashMessage = document.getElementById('flashMessage');
+    if (flashMessage) {
+        flashMessage.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => flashMessage.remove(), 300);
+    }
+}
+
+function showLoadingToast(message) {
+    // Create temporary loading notification
+    const toast = document.createElement('div');
+    toast.className = 'flash-notification success';
+    toast.innerHTML = `
+        <div class="flash-content">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(toast);
+}
+
+function showErrorToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'flash-notification error';
+    toast.innerHTML = `
+        <div class="flash-content">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>${message}</span>
+            <button type="button" class="close-btn" onclick="this.closest('.flash-notification').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+    }, 5000);
+}
+
+// Auto-hide flash message after 4 seconds
+setTimeout(function() {
+    const flashMessage = document.getElementById('flashMessage');
+    if (flashMessage) {
+        closeFlash();
+    }
+}, 4000);
 </script>
 
-<!-- Success/Error Popup -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        <div id="flashMessage" style="position: fixed; top: 20px; right: 20px; z-index: 9999; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideIn 0.3s ease-out; min-width: 300px;">
-            {% for category, message in messages %}
-                <div style="background: {% if category == 'success' %}#10b981{% else %}#ef4444{% endif %}; color: white; padding: 1rem 1.5rem; border-radius: 8px; display: flex; align-items: center; gap: 0.75rem;">
-                    <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %}" style="font-size: 1.1rem;"></i>
-                    <span>{{ message }}</span>
-                </div>
-            {% endfor %}
-        </div>
-        
-        <style>
-            @keyframes slideIn {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
-            
-            @keyframes slideOut {
-                from {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-                to {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-            }
-        </style>
-        
-        <script>
-            // Auto-hide flash message after 3 seconds
-            setTimeout(function() {
-                var flashMessage = document.getElementById('flashMessage');
-                if (flashMessage) {
-                    flashMessage.style.animation = 'slideOut 0.3s ease-out';
-                    setTimeout(function() {
-                        flashMessage.remove();
-                    }, 300);
-                }
-            }, 3000);
-        </script>
-    {% endif %}
-{% endwith %}
-<style>
-.btn {
-    transition: all 0.2s ease-in-out;
-}
-
-.btn:hover {
-    transform: none;
-    box-shadow: none;
-}
-
-.btn-primary {
-    transition: all 0.2s ease-in-out;
-}
-
-.btn-primary:hover {
-    background-color: #2563eb;
-    border-color: #2563eb;
-    transform: none;
-    box-shadow: none;
-}
-
-.btn-outline:hover {
-    background-color: #f3f4f6;
-    border-color: #9ca3af;
-    color: #374151;
-}
-</style>
 {% endblock %}

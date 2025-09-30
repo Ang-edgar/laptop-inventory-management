@@ -1,0 +1,361 @@
+{% extends "guest_base.html" %}
+
+{% block title %}{{ laptop.laptop_name }} - Laptop Details{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Laptop Details -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            {% if images and images|length > 0 %}
+                                {% set primary_image = images|selectattr('is_primary', 'equalto', 1)|list|first or images[0] %}
+                                <div class="laptop-images">
+                                    <!-- Main Image Display -->
+                                    <div class="main-image-container mb-3">
+                                        <img src="{{ url_for('serve_specific_image', laptop_id=laptop.id, image_id=primary_image.id) }}" 
+                                             class="img-fluid rounded main-laptop-image" 
+                                             alt="{{ laptop.laptop_name }}"
+                                             onclick="openImageModal(this.src)">
+                                    </div>
+                                    
+                                    <!-- Thumbnail Gallery (if multiple images) -->
+                                    {% if images|length > 1 %}
+                                    <div class="image-thumbnails d-flex gap-2">
+                                        {% for image in images[:4] %}  <!-- Limit to 4 thumbnails -->
+                                        <div class="thumbnail-container">
+                                            <img src="{{ url_for('serve_specific_image', laptop_id=laptop.id, image_id=image.id) }}" 
+                                                 class="thumbnail-image {{ 'active' if image.is_primary else '' }}" 
+                                                 alt="Laptop Image"
+                                                 onclick="changeMainImage(this.src)">
+                                            {% if image.is_primary %}
+                                                <div class="primary-badge">PRIMARY</div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                        
+                                        {% if images|length > 4 %}
+                                        <div class="more-images-indicator">
+                                            <span>+{{ images|length - 4 }} more</span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <div class="no-image-large d-flex align-items-center justify-content-center">
+                                    <div class="text-center">
+                                        <i class="fas fa-laptop fa-4x text-muted mb-3"></i>
+                                        <p class="text-muted">No Image Available</p>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h2>{{ laptop.laptop_name }}</h2>
+                            
+                            <!-- Pricing Breakdown -->
+                            <div class="pricing-breakdown mb-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Base Price:</span>
+                                    <span class="fw-bold text-primary">${{ "{:.2f}".format(original_price) }}</span>
+                                </div>
+                                {% if upgrades_value > 0 %}
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Upgrades:</span>
+                                    <span class="fw-bold text-success">+${{ "{:.2f}".format(upgrades_value) }}</span>
+                                </div>
+                                <hr class="my-2">
+                                {% endif %}
+                                <div class="d-flex justify-content-between mb-3">
+                                    <strong>Total Price:</strong>
+                                    <strong class="text-success fs-4">${{ "{:.2f}".format(total_price) }}</strong>
+                                </div>
+                            </div>
+                            
+                            <div class="specs">
+                                <div class="spec-row"><strong>CPU:</strong> {{ laptop.cpu }}</div>
+                                <div class="spec-row"><strong>RAM:</strong> {{ laptop.ram }}</div>
+                                <div class="spec-row"><strong>Storage:</strong> {{ laptop.storage }}</div>
+                                <div class="spec-row"><strong>OS:</strong> {{ laptop.os }}</div>
+                                {% if laptop.notes %}
+                                <div class="spec-row"><strong>Notes:</strong> {{ laptop.notes }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mt-4">
+                                <a href="{{ url_for('add_to_cart', laptop_id=laptop.id) }}" class="btn btn-success btn-lg">
+                                    <i class="fas fa-cart-plus"></i> Add to Cart (${{ "{:.2f}".format(total_price) }})
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spare Parts Configuration -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-cogs"></i> Customize Your Laptop</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Currently Selected Parts -->
+                    {% if selected_parts %}
+                    <h6>Selected Upgrades:</h6>
+                    {% for part in selected_parts %}
+                    <div class="selected-part mb-3 p-3 bg-light rounded border-start border-success border-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">{{ part.capacity }} {{ part.part_type }}</div>
+                                {% if part.storage_type %}<small class="text-muted">{{ part.storage_type }}</small>{% endif %}
+                                {% if part.ram_type %}<small class="text-muted">{{ part.ram_type }} {{ part.ram_speed }}</small>{% endif %}
+                                <div class="text-success fw-bold mt-1">+${{ "{:.2f}".format(part.price) }}</div>
+                                {% if part.quantity > 1 %}
+                                <small class="text-muted">Qty: {{ part.quantity }}</small>
+                                {% endif %}
+                            </div>
+                            <a href="{{ url_for('remove_sparepart_from_cart', cart_sparepart_id=part.id) }}" 
+                               class="btn btn-sm btn-outline-danger" title="Remove">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <hr>
+                    {% endif %}
+
+                    <!-- Storage Upgrades -->
+                    <h6><i class="fas fa-hdd"></i> Storage Upgrades</h6>
+                    <div class="spare-parts-section mb-4">
+                        {% for part in storage_parts %}
+                        <div class="spare-part-item mb-2 p-2 border rounded">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">{{ part.capacity }} {{ part.storage_type }}</div>
+                                    <div class="text-success fw-bold">${{ "{:.2f}".format(part.price) }}</div>
+                                    <small class="text-muted">{{ part.quantity }} available</small>
+                                </div>
+                                <form method="POST" action="{{ url_for('add_sparepart_to_cart') }}" class="d-inline">
+                                    <input type="hidden" name="laptop_id" value="{{ laptop.id }}">
+                                    <input type="hidden" name="sparepart_id" value="{{ part.id }}">
+                                    <input type="hidden" name="quantity" value="1">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-plus"></i> Add
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- RAM Upgrades -->
+                    <h6><i class="fas fa-memory"></i> RAM Upgrades</h6>
+                    <div class="spare-parts-section">
+                        {% for part in ram_parts %}
+                        <div class="spare-part-item mb-2 p-2 border rounded">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">{{ part.capacity }} {{ part.ram_type }}</div>
+                                    {% if part.ram_speed %}<small class="text-muted">{{ part.ram_speed }}</small>{% endif %}
+                                    <div class="text-success fw-bold">${{ "{:.2f}".format(part.price) }}</div>
+                                    <small class="text-muted">{{ part.quantity }} available</small>
+                                </div>
+                                <form method="POST" action="{{ url_for('add_sparepart_to_cart') }}" class="d-inline">
+                                    <input type="hidden" name="laptop_id" value="{{ laptop.id }}">
+                                    <input type="hidden" name="sparepart_id" value="{{ part.id }}">
+                                    <input type="hidden" name="quantity" value="1">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-plus"></i> Add
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div id="imageModal" class="image-modal" onclick="closeImageModal()">
+    <div class="image-modal-content">
+        <img id="modalImage" alt="Laptop Image">
+        <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
+    </div>
+</div>
+
+<style>
+.no-image-large {
+    height: 300px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed #dee2e6;
+}
+
+.main-laptop-image {
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.main-laptop-image:hover {
+    transform: scale(1.05);
+}
+
+.thumbnail-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.thumbnail-image:hover {
+    border-color: #007bff;
+    transform: scale(1.1);
+}
+
+.thumbnail-image.active {
+    border-color: #28a745;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.thumbnail-container {
+    position: relative;
+}
+
+.primary-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #28a745;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.6rem;
+    font-weight: bold;
+}
+
+.more-images-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    color: #6c757d;
+    text-align: center;
+}
+
+.spec-row {
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+.pricing-breakdown {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.spare-part-item:hover {
+    background-color: #f8f9fa;
+}
+
+.selected-part {
+    transition: all 0.2s ease;
+}
+
+/* Image Modal */
+.image-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.8);
+}
+
+.image-modal-content {
+    position: relative;
+    margin: auto;
+    padding: 20px;
+    width: 90%;
+    max-width: 800px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.image-modal img {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+}
+
+.image-modal-close {
+    position: absolute;
+    top: 10px;
+    right: 25px;
+    color: white;
+    font-size: 35px;
+    font-weight: bold;
+    cursor: pointer;
+}
+</style>
+
+<script>
+function changeMainImage(newSrc) {
+    const mainImage = document.querySelector('.main-laptop-image');
+    if (mainImage) {
+        mainImage.src = newSrc;
+    }
+    
+    // Update active thumbnail
+    document.querySelectorAll('.thumbnail-image').forEach(thumb => {
+        thumb.classList.remove('active');
+        if (thumb.src === newSrc) {
+            thumb.classList.add('active');
+        }
+    });
+}
+
+function openImageModal(src) {
+    document.getElementById('imageModal').style.display = 'block';
+    document.getElementById('modalImage').src = src;
+}
+
+function closeImageModal() {
+    document.getElementById('imageModal').style.display = 'none';
+}
+
+// Close modal when clicking outside the image
+document.getElementById('imageModal').onclick = function(event) {
+    if (event.target === this) {
+        closeImageModal();
+    }
+}
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeImageModal();
+    }
+});
+</script>
+{% endblock %}

@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash, session, Response, abort
+import uuid
 import sqlite3
 import datetime
 import csv
@@ -52,7 +53,7 @@ def login_required(f):
 # --- Database helper ---
 def get_db():
     # Get database path from environment variable or use default
-    db_path = os.environ.get('DB_PATH', 'laptops.db')
+    db_path = os.environ.get('DB_PATH', 'data/laptops.db')
     # Only create directory if path contains a directory
     if os.path.dirname(db_path):
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
@@ -160,7 +161,29 @@ with get_db() as conn:
         ("warranty_notes", "TEXT")
     ]
     
+    laptop_ram_columns_to_add = [
+        ("ram_type", "TEXT"),
+        ("ram_speed", "TEXT"),
+        ("storage_type", "TEXT"),
+    ]
+    
+    spareparts_columns_to_add = [
+        ("price", "REAL DEFAULT 0")
+    ]
+    
     for column_name, column_type in columns_to_add:
+        try:
+            conn.execute(f"ALTER TABLE laptops ADD COLUMN {column_name} {column_type}")
+        except sqlite3.OperationalError:
+            pass
+    
+    for column_name, column_type in spareparts_columns_to_add:
+        try:
+            conn.execute(f"ALTER TABLE laptops ADD COLUMN {column_name} {column_type}")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+        
+    for column_name, column_type in laptop_ram_columns_to_add:
         try:
             conn.execute(f"ALTER TABLE laptops ADD COLUMN {column_name} {column_type}")
         except sqlite3.OperationalError:
@@ -188,6 +211,7 @@ with get_db() as conn:
         laptop_id INTEGER,
         sparepart_id INTEGER,
         installed_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        price_at_time REAL DEFAULT 0,
         FOREIGN KEY (laptop_id) REFERENCES laptops(id),
         FOREIGN KEY (sparepart_id) REFERENCES spareparts(id)
     )
@@ -246,6 +270,38 @@ with get_db() as conn:
     )
     """)
     
+    # Create cart_spareparts table for guest spare parts selection
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cart_spareparts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            laptop_id INTEGER NOT NULL,
+            sparepart_id INTEGER NOT NULL,
+            quantity INTEGER DEFAULT 1,
+            added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (laptop_id) REFERENCES laptops (id),
+            FOREIGN KEY (sparepart_id) REFERENCES spareparts (id)
+        )
+    """)
+    
+    # Create cart table for guest laptop cart
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cart (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            laptop_id INTEGER NOT NULL,
+            quantity INTEGER DEFAULT 1,
+            added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (laptop_id) REFERENCES laptops (id)
+        )
+    """)
+    # Add price_at_time column if it doesn't exist
+    try:
+        conn.execute("ALTER TABLE laptop_spareparts ADD COLUMN price_at_time REAL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    
+    conn.commit()
     # Insert default admin user if not exists
     admin_exists = conn.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0]
     if admin_exists == 0:
@@ -388,26 +444,37 @@ def add():
         laptop_name = request.form["laptop_name"]
         serial_number = generate_serial_number(laptop_name)
         
-        # Insert laptop with serial number
+        # Get RAM and storage info
+        ram_display = request.form.get("ram_capacity", "")  # User types full RAM spec
+        ram_type = request.form.get("ram_type", "")         # Only type is dropdown
+        
+        storage_display = request.form.get("storage_capacity", "")  # User types full storage spec
+        storage_type = request.form.get("storage_type", "")         # Only type is dropdown
+        
+        # Insert laptop with specs
         cursor = conn.execute("""
-            INSERT INTO laptops (laptop_name, cpu, ram, storage, os, notes, price_bought, price_to_sell, fees, serial_number)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO laptops (laptop_name, cpu, ram, storage, os, notes, 
+                               price_bought, price_to_sell, fees, serial_number,
+                               ram_type, storage_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             laptop_name,
             request.form["cpu"],
-            request.form["ram"],
-            request.form["storage"],
+            ram_display,
+            storage_display,
             request.form["os"],
             request.form["notes"],
-            request.form["price_bought"],
-            request.form["price_to_sell"],
-            request.form["fees"],
-            serial_number
+            safe_float(request.form["price_bought"]),
+            safe_float(request.form["price_to_sell"]),
+            safe_float(request.form["fees"]),
+            serial_number,
+            ram_type,
+            storage_type
         ))
         
         laptop_id = cursor.lastrowid
         
-        # Handle multiple image uploads (same as before)
+        # Handle image uploads (same as before)
         if "images" in request.files:
             files = request.files.getlist("images")
             for i, file in enumerate(files):
@@ -423,6 +490,7 @@ def add():
                     """, (laptop_id, image_data, image_mimetype, image_name, is_primary))
         
         conn.commit()
+        flash("Laptop added successfully!", "success")
         return redirect(url_for("admin_panel"))
     return render_template("add.html")
 
@@ -465,24 +533,46 @@ def completed_sales():
 def edit(laptop_id):
     conn = get_db()
     laptop = conn.execute("SELECT * FROM laptops WHERE id=?", (laptop_id,)).fetchone()
+    
     if request.method == "POST":
         # Check if this is a complete form submission (has laptop details)
         if "laptop_name" in request.form:
             try:
+                # Handle RAM fields properly
+                ram_display = request.form.get("ram_capacity", "")  # This should be the full RAM text
+                ram_type = request.form.get("ram_type", "")         # This should be the dropdown selection
+                
+                # Handle storage fields properly  
+                storage_display = request.form.get("storage_capacity", "")  # This should be the full storage text
+                storage_type = request.form.get("storage_type", "")         # This should be the dropdown selection
+                
+                # If the form still uses old field names, fall back to them
+                if not ram_display:
+                    ram_display = request.form.get("ram", "")
+                if not storage_display:
+                    storage_display = request.form.get("storage", "")
+                
                 # Update laptop details with proper error handling
                 price_bought = safe_float(request.form.get("price_bought"), 0)
                 price_to_sell = safe_float(request.form.get("price_to_sell"), 0)
                 fees = safe_float(request.form.get("fees"), 0)
                 
+                print(f"Debug - Updating laptop {laptop_id}:")
+                print(f"  ram_display: '{ram_display}'")
+                print(f"  ram_type: '{ram_type}'")
+                print(f"  storage_display: '{storage_display}'")
+                print(f"  storage_type: '{storage_type}'")
+                
                 conn.execute("""
                     UPDATE laptops SET laptop_name=?, cpu=?, ram=?, storage=?, os=?, notes=?, 
-                                      price_bought=?, price_to_sell=?, fees=?, sold=?, last_edited=?
+                                      price_bought=?, price_to_sell=?, fees=?, sold=?, last_edited=?,
+                                      ram_type=?, storage_type=?
                     WHERE id=?
                 """, (
                     request.form.get("laptop_name", ""),
                     request.form.get("cpu", ""),
-                    request.form.get("ram", ""),
-                    request.form.get("storage", ""),
+                    ram_display,      # Store the full RAM description
+                    storage_display,  # Store the full storage description
                     request.form.get("os", ""),
                     request.form.get("notes", ""),
                     price_bought,
@@ -490,14 +580,18 @@ def edit(laptop_id):
                     fees,
                     1 if "sold" in request.form else 0,
                     datetime.now(),
+                    ram_type,         # Store just the RAM type for compatibility
+                    storage_type,     # Store just the storage type
                     laptop_id
                 ))
+                
                 conn.commit()
                 flash("Laptop updated successfully!", "success")
                 return redirect(url_for("edit", laptop_id=laptop_id))
+                
             except Exception as e:
                 print(f"Error updating laptop: {e}")
-                flash("Error updating laptop. Please try again.", "error")
+                flash(f"Error updating laptop: {str(e)}", "error")
     
     # Get images for display
     images = conn.execute("SELECT * FROM laptop_images WHERE laptop_id=? ORDER BY is_primary DESC, uploaded_date", (laptop_id,)).fetchall()
@@ -586,7 +680,7 @@ def spareparts():
     ram_type = request.args.get('ram_type', '')
     ram_speed = request.args.get('ram_speed', '')
 
-    valid_columns = ['id', 'part_type', 'storage_type', 'ram_type', 'ram_speed', 'capacity', 'quantity', 'last_edited', 'created_date']
+    valid_columns = ['id', 'part_type', 'storage_type', 'ram_type', 'ram_speed', 'capacity', 'quantity', 'price', 'last_edited', 'created_date']
     if sort_by not in valid_columns:
         sort_by = 'id'
     if order not in ['asc', 'desc']:
@@ -618,21 +712,32 @@ def spareparts():
 def add_sparepart():
     if request.method == "POST":
         conn = get_db()
-        conn.execute("""
-            INSERT INTO spareparts (part_type, storage_type, ram_type, ram_speed, capacity, notes, quantity)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            request.form["part_type"],
-            request.form.get("storage_type", ""),
-            request.form.get("ram_type", ""),
-            request.form.get("ram_speed", ""),
+        
+        try:
+            # Include all non-auto columns, let defaults handle timestamps
+            conn.execute("""
+                INSERT INTO spareparts (part_type, storage_type, ram_type, ram_speed, capacity, notes, quantity, price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                request.form["part_type"],
+                request.form.get("storage_type", ""),
+                request.form.get("ram_type", ""),
+                request.form.get("ram_speed", ""),
+                request.form["capacity"],
+                request.form.get("notes", ""),
+                int(request.form["quantity"]),
+                safe_float(request.form.get("price"), 0.0)
+            ))
+            
+            conn.commit()
+            flash("Spare part added successfully!", "success")
+            return redirect(url_for("spareparts"))
+            
+        except Exception as e:
+            print(f"Error adding spare part: {e}")
+            flash(f"Error adding spare part: {str(e)}", "error")
+            return render_template("add_spareparts.html")
     
-            request.form["capacity"],
-            request.form["notes"],
-            request.form["quantity"],
-        ))
-        conn.commit()
-        return redirect(url_for("spareparts"))
     return render_template("add_spareparts.html")
 
 # --- Edit spare part ---
@@ -651,6 +756,7 @@ def edit_sparepart(part_id):
                 capacity=?,
                 notes=?,
                 quantity=?,
+                price=?,
                 last_edited=CURRENT_TIMESTAMP
             WHERE id=?
         """, (
@@ -661,6 +767,7 @@ def edit_sparepart(part_id):
             request.form["capacity"],
             request.form["notes"],
             request.form["quantity"],
+            safe_float(request.form.get("price"), 0), #added price field
             part_id
         ))
         conn.commit()
@@ -682,41 +789,151 @@ def delete_sparepart(part_id):
 def laptop_detail(laptop_id):
     conn = get_db()
     laptop = conn.execute("SELECT * FROM laptops WHERE id=?", (laptop_id,)).fetchone()
+    
+    # Get installed parts with pricing
     installed_parts = conn.execute("""
-        SELECT sp.* FROM laptop_spareparts lsp
+        SELECT sp.*, lsp.price_at_time, lsp.installed_date, lsp.id as installation_id
+        FROM laptop_spareparts lsp
         JOIN spareparts sp ON lsp.sparepart_id = sp.id
         WHERE lsp.laptop_id=?
+        ORDER BY lsp.installed_date DESC
     """, (laptop_id,)).fetchall()
+    
+    # Calculate original price and total upgrades value
+    total_upgrades_value = sum(part['price_at_time'] for part in installed_parts)
+    original_laptop_price = laptop['price_to_sell'] - total_upgrades_value
+    
     images = conn.execute("SELECT * FROM laptop_images WHERE laptop_id=? ORDER BY is_primary DESC, uploaded_date", (laptop_id,)).fetchall()
-    return render_template("laptop_detail.html", laptop=laptop, installed_parts=installed_parts, images=images)
+    
+    return render_template("laptop_detail.html", 
+                         laptop=laptop, 
+                         installed_parts=installed_parts,
+                         images=images,
+                         original_price=original_laptop_price,
+                         upgrades_value=total_upgrades_value)
+# --- Add spare part to laptop ---(with price tracking)
 
-# --- Add spare part to laptop ---
 @app.route("/add_sparepart_to_laptop/<int:laptop_id>", methods=["GET", "POST"])
 @admin_required
 def add_sparepart_to_laptop(laptop_id):
     conn = get_db()
-    # Only show spare parts with quantity > 0
-    spareparts = conn.execute("SELECT * FROM spareparts WHERE quantity > 0").fetchall()
+    laptop = conn.execute("SELECT * FROM laptops WHERE id=?", (laptop_id,)).fetchone()
+    
+    # Get compatible spare parts based on laptop's RAM type only
+    storage_parts = conn.execute("""
+        SELECT * FROM spareparts 
+        WHERE part_type='Storage' AND quantity > 0 
+        ORDER BY price ASC
+    """).fetchall()
+    
+    # Only filter RAM by type - capacity and speed don't matter for compatibility
+    ram_parts = conn.execute("""
+        SELECT * FROM spareparts 
+        WHERE part_type='RAM' AND quantity > 0 
+        AND (ram_type = ? OR ? IS NULL OR ? = '')
+        ORDER BY capacity, price ASC
+    """, (laptop['ram_type'], laptop['ram_type'], laptop['ram_type'])).fetchall()
+    
     if request.method == "POST":
-        sparepart_id = int(request.form["sparepart_id"])
-        # Link spare part to laptop
-        conn.execute("INSERT INTO laptop_spareparts (laptop_id, sparepart_id) VALUES (?, ?)", (laptop_id, sparepart_id))
-        # Decrement quantity
+        sparepart_id = request.form["sparepart_id"]
+        sparepart = conn.execute("SELECT * FROM spareparts WHERE id=?", (sparepart_id,)).fetchone()
+        
+        if not sparepart or sparepart['quantity'] <= 0:
+            flash("❌ Spare part not available or out of stock", "error")
+            return redirect(url_for("add_sparepart_to_laptop", laptop_id=laptop_id))
+        
+        # Check RAM type compatibility only
+        if sparepart['part_type'] == 'RAM':
+            if laptop['ram_type'] and sparepart['ram_type'] != laptop['ram_type']:
+                flash(f"❌ RAM type mismatch! This laptop requires {laptop['ram_type']} RAM, but the selected spare part is {sparepart['ram_type']}", "error")
+                return redirect(url_for("add_sparepart_to_laptop", laptop_id=laptop_id))
+            elif not laptop['ram_type']:
+                flash("⚠️ Warning: Laptop RAM type not specified. Please edit the laptop to set RAM type for proper compatibility checking.", "warning")
+        
+        # Add spare part to laptop with current price
+        conn.execute("""
+            INSERT INTO laptop_spareparts (laptop_id, sparepart_id, price_at_time)
+            VALUES (?, ?, ?)
+        """, (laptop_id, sparepart_id, sparepart['price']))
+        
+        # Update spare part quantity
         conn.execute("UPDATE spareparts SET quantity = quantity - 1 WHERE id=?", (sparepart_id,))
+        
+        # Calculate new total price for laptop
+        total_spareparts_value = conn.execute("""
+            SELECT COALESCE(SUM(price_at_time), 0) as total
+            FROM laptop_spareparts 
+            WHERE laptop_id = ?
+        """, (laptop_id,)).fetchone()['total']
+        
+        # Get original laptop price (assuming it was stored without previous upgrades)
+        # If this is the first upgrade, use current price_to_sell as base
+        current_laptop = conn.execute("SELECT price_to_sell FROM laptops WHERE id=?", (laptop_id,)).fetchone()
+        
+        # Calculate original price by subtracting previous upgrades
+        previous_upgrades_value = conn.execute("""
+            SELECT COALESCE(SUM(price_at_time), 0) as total
+            FROM laptop_spareparts 
+            WHERE laptop_id = ? AND id != (SELECT MAX(id) FROM laptop_spareparts WHERE laptop_id = ?)
+        """, (laptop_id, laptop_id)).fetchone()['total']
+        
+        original_price = current_laptop['price_to_sell'] - previous_upgrades_value
+        new_total_price = original_price + total_spareparts_value
+        
+        # Update laptop price
+        conn.execute("UPDATE laptops SET price_to_sell = ? WHERE id = ?", (new_total_price, laptop_id))
+        
         conn.commit()
+        
+        # Success message with details
+        if sparepart['part_type'] == 'RAM':
+            flash(f"✅ Successfully added {sparepart['capacity']} {sparepart['ram_type']} RAM upgrade (+${sparepart['price']:.2f})", "success")
+        else:
+            flash(f"✅ Successfully added {sparepart['capacity']} {sparepart['storage_type']} storage upgrade (+${sparepart['price']:.2f})", "success")
+        
         return redirect(url_for("laptop_detail", laptop_id=laptop_id))
-    return render_template("add_sparepart_to_laptop.html", laptop_id=laptop_id, spareparts=spareparts)
-
+    
+    return render_template("add_sparepart_to_laptop.html", 
+                         laptop_id=laptop_id, 
+                         laptop=laptop,
+                         storage_parts=storage_parts,
+                         ram_parts=ram_parts)
+    
 # --- Remove spare part from laptop ---
-@app.route("/remove_sparepart_from_laptop/<int:laptop_id>/<int:sparepart_id>", methods=["POST"])
+@app.route("/remove_sparepart_from_laptop/<int:laptop_id>/<int:sparepart_installation_id>", methods=["POST"])
 @admin_required
-def remove_sparepart_from_laptop(laptop_id, sparepart_id):
+def remove_sparepart_from_laptop(laptop_id, sparepart_installation_id):
     conn = get_db()
-    # Remove the link
-    conn.execute("DELETE FROM laptop_spareparts WHERE laptop_id=? AND sparepart_id=? LIMIT 1", (laptop_id, sparepart_id))
-    # Increment quantity
-    conn.execute("UPDATE spareparts SET quantity = quantity + 1 WHERE id=?", (sparepart_id,))
+    
+    # Get the installed spare part details
+    installation = conn.execute("""
+        SELECT lsp.*, sp.part_type, sp.capacity, sp.ram_type, sp.storage_type
+        FROM laptop_spareparts lsp
+        JOIN spareparts sp ON lsp.sparepart_id = sp.id
+        WHERE lsp.id = ? AND lsp.laptop_id = ?
+    """, (sparepart_installation_id, laptop_id)).fetchone()
+    
+    if not installation:
+        flash("❌ Spare part installation not found", "error")
+        return redirect(url_for("laptop_detail", laptop_id=laptop_id))
+    
+    # Remove the spare part installation
+    conn.execute("DELETE FROM laptop_spareparts WHERE id = ?", (sparepart_installation_id,))
+    
+    # Return spare part to inventory
+    conn.execute("UPDATE spareparts SET quantity = quantity + 1 WHERE id = ?", (installation['sparepart_id'],))
+    
+    # Update laptop price (subtract the spare part price)
+    conn.execute("""
+        UPDATE laptops SET price_to_sell = price_to_sell - ? WHERE id = ?
+    """, (installation['price_at_time'], laptop_id))
+    
     conn.commit()
+    
+    # Success message
+    part_name = f"{installation['capacity']} {installation['ram_type'] or installation['storage_type']}"
+    flash(f"✅ Removed {part_name} upgrade (-${installation['price_at_time']:.2f})", "success")
+    
     return redirect(url_for("laptop_detail", laptop_id=laptop_id))
 
 # --- Serve images from database ---
@@ -1071,57 +1288,143 @@ def edit_warranty(laptop_id):
 # --- Guest Shopping Routes ---
 @app.route("/shop")
 def guest_shop():
-    # No login required - this is now the public guest interface
-    
     search = request.args.get('search', '')
-    
     conn = get_db()
-    query = "SELECT * FROM laptops WHERE sold = 0"
-    params = []
     
     if search:
-        query += " AND (laptop_name LIKE ? OR cpu LIKE ? OR ram LIKE ? OR storage LIKE ?)"
-        search_param = f"%{search}%"
-        params.extend([search_param, search_param, search_param, search_param])
+        laptops = conn.execute("""
+            SELECT l.*, 
+                   (SELECT li.id FROM laptop_images li WHERE li.laptop_id = l.id AND li.is_primary = 1 LIMIT 1) as primary_image_id
+            FROM laptops l
+            WHERE l.sold = 0 
+            AND (l.laptop_name LIKE ? OR l.cpu LIKE ? OR l.ram LIKE ? OR l.storage LIKE ? OR l.os LIKE ?)
+            ORDER BY l.created_date DESC
+        """, (f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%')).fetchall()
+    else:
+        laptops = conn.execute("""
+            SELECT l.*, 
+                   (SELECT li.id FROM laptop_images li WHERE li.laptop_id = l.id AND li.is_primary = 1 LIMIT 1) as primary_image_id
+            FROM laptops l
+            WHERE l.sold = 0 
+            ORDER BY l.created_date DESC
+        """).fetchall()
     
-    query += " ORDER BY id DESC"
-    laptops = conn.execute(query, params).fetchall()
+    return render_template("guest_shop.html", laptops=laptops, search=search)
+
+# new guest spareparts function (v1.22b)
+@app.route("/guest/laptop/<int:laptop_id>")
+def guest_laptop_detail(laptop_id):
+    conn = get_db()
+    laptop = conn.execute("SELECT * FROM laptops WHERE id=? AND sold=0", (laptop_id,)).fetchone()
+    if not laptop:
+        abort(404)
     
-    # Convert to list of dictionaries and add image data
-    laptops_with_images = []
-    for laptop in laptops:
-        laptop_dict = dict(laptop)
-        
-        # Get primary image from laptop_images table
-        primary_image = conn.execute("""
-            SELECT image_data FROM laptop_images 
-            WHERE laptop_id = ? AND is_primary = 1 
-            ORDER BY uploaded_date DESC LIMIT 1
-        """, (laptop['id'],)).fetchone()
-        
-        # If no primary image, get any image
-        if not primary_image:
-            primary_image = conn.execute("""
-                SELECT image_data FROM laptop_images 
-                WHERE laptop_id = ? 
-                ORDER BY uploaded_date DESC LIMIT 1
-            """, (laptop['id'],)).fetchone()
-        
-        # Add image data to laptop dict
-        if primary_image:
-            import base64
-            laptop_dict['image_data'] = base64.b64encode(primary_image['image_data']).decode('utf-8')
-        else:
-            laptop_dict['image_data'] = None
+    # Get compatible spare parts
+    storage_parts = conn.execute("""
+        SELECT * FROM spareparts 
+        WHERE part_type='Storage' AND quantity > 0 
+        ORDER BY price ASC
+    """).fetchall()
+    
+    ram_parts = conn.execute("""
+        SELECT * FROM spareparts 
+        WHERE part_type='RAM' AND quantity > 0 
+        ORDER BY price ASC
+    """).fetchall()
+    
+    # Get already selected spare parts for this laptop in guest session
+    session_id = session.get('session_id', str(uuid.uuid4()))
+    session['session_id'] = session_id
+    
+    selected_parts = conn.execute("""
+        SELECT cs.*, sp.part_type, sp.capacity, sp.price, sp.storage_type, sp.ram_type, sp.ram_speed
+        FROM cart_spareparts cs
+        JOIN spareparts sp ON cs.sparepart_id = sp.id
+        WHERE cs.session_id = ? AND cs.laptop_id = ?
+    """, (session_id, laptop_id)).fetchall()
+    
+    images = conn.execute("""
+        SELECT * FROM laptop_images WHERE laptop_id=? ORDER BY is_primary DESC, uploaded_date
+    """, (laptop_id,)).fetchall()
+    
+    # Calculate pricing
+    original_price = laptop['price_to_sell']
+    upgrades_value = sum(part['price'] * part['quantity'] for part in selected_parts)
+    total_price = original_price + upgrades_value
+    
+    return render_template("guest_laptop_detail.html", 
+                         laptop=laptop, 
+                         storage_parts=storage_parts,
+                         ram_parts=ram_parts,
+                         selected_parts=selected_parts,
+                         images=images,
+                         original_price=original_price,
+                         upgrades_value=upgrades_value,
+                         total_price=total_price)
+
+@app.route("/add_sparepart_to_cart", methods=["POST"])
+def add_sparepart_to_cart():
+    laptop_id = request.form.get("laptop_id")
+    sparepart_id = request.form.get("sparepart_id")
+    quantity = int(request.form.get("quantity", 1))
+    
+    if not session.get('session_id'):
+        session['session_id'] = str(uuid.uuid4())
+    
+    conn = get_db()
+    
+    # Check if spare part is available
+    spare_part = conn.execute("SELECT * FROM spareparts WHERE id=?", (sparepart_id,)).fetchone()
+    if not spare_part or spare_part['quantity'] < quantity:
+        flash("Spare part not available in requested quantity", "error")
+        return redirect(url_for("guest_laptop_detail", laptop_id=laptop_id))
+    
+    # Check if already in cart for this laptop
+    existing = conn.execute("""
+        SELECT * FROM cart_spareparts 
+        WHERE session_id=? AND laptop_id=? AND sparepart_id=?
+    """, (session['session_id'], laptop_id, sparepart_id)).fetchone()
+    
+    if existing:
+        # Update quantity
+        new_quantity = existing['quantity'] + quantity
+        if new_quantity > spare_part['quantity']:
+            flash("Not enough spare parts in stock", "error")
+            return redirect(url_for("guest_laptop_detail", laptop_id=laptop_id))
             
-        laptops_with_images.append(laptop_dict)
+        conn.execute("""
+            UPDATE cart_spareparts SET quantity = ?
+            WHERE session_id=? AND laptop_id=? AND sparepart_id=?
+        """, (new_quantity, session['session_id'], laptop_id, sparepart_id))
+    else:
+        # Add new
+        conn.execute("""
+            INSERT INTO cart_spareparts (session_id, laptop_id, sparepart_id, quantity)
+            VALUES (?, ?, ?, ?)
+        """, (session['session_id'], laptop_id, sparepart_id, quantity))
     
-    conn.close()
+    conn.commit()
+    flash(f"Added {spare_part['part_type']} upgrade to your laptop configuration!", "success")
+    return redirect(url_for("guest_laptop_detail", laptop_id=laptop_id))
+
+@app.route("/remove_sparepart_from_cart/<int:cart_sparepart_id>")
+def remove_sparepart_from_cart(cart_sparepart_id):
+    if not session.get('session_id'):
+        return redirect(url_for("guest_shop"))
     
-    # Get cart count
-    cart_count = len(session.get('cart', []))
+    conn = get_db()
+    cart_item = conn.execute("""
+        SELECT laptop_id FROM cart_spareparts 
+        WHERE id=? AND session_id=?
+    """, (cart_sparepart_id, session['session_id'])).fetchone()
     
-    return render_template('guest_shop.html', laptops=laptops_with_images, search=search, cart_count=cart_count)
+    if cart_item:
+        conn.execute("DELETE FROM cart_spareparts WHERE id=?", (cart_sparepart_id,))
+        conn.commit()
+        flash("Spare part removed from configuration", "info")
+        return redirect(url_for("guest_laptop_detail", laptop_id=cart_item['laptop_id']))
+    
+    return redirect(url_for("guest_shop"))
 
 @app.route("/add_to_cart/<int:laptop_id>")
 def add_to_cart(laptop_id):
@@ -1159,50 +1462,52 @@ def remove_from_cart(laptop_id):
 
 @app.route("/cart")
 def view_cart():
-    # No login required
+    if not session.get('session_id'):
+        return render_template("cart.html", cart_items=[], cart_spareparts={}, total=0)
     
-    cart_items = []
+    conn = get_db()
+    
+    # Get cart items (laptops)
+    cart_items = conn.execute("""
+        SELECT c.*, l.laptop_name, l.price_to_sell, l.image_data 
+        FROM cart c 
+        JOIN laptops l ON c.laptop_id = l.id 
+        WHERE c.session_id = ?
+    """, (session['session_id'],)).fetchall()
+    
+    # Get spare parts for each laptop in cart with pricing
+    cart_spareparts = {}
     total_amount = 0
     
-    if 'cart' in session and session['cart']:
-        with get_db() as conn:
-            placeholders = ','.join(['?'] * len(session['cart']))
-            cart_laptops = conn.execute(
-                f"SELECT * FROM laptops WHERE id IN ({placeholders}) AND sold = 0", 
-                session['cart']
-            ).fetchall()
-            
-            # Convert to list of dictionaries and add image data
-            for laptop in cart_laptops:
-                laptop_dict = dict(laptop)
-                
-                # Get primary image from laptop_images table
-                primary_image = conn.execute("""
-                    SELECT image_data FROM laptop_images 
-                    WHERE laptop_id = ? AND is_primary = 1 
-                    ORDER BY uploaded_date DESC LIMIT 1
-                """, (laptop['id'],)).fetchone()
-                
-                # If no primary image, get any image
-                if not primary_image:
-                    primary_image = conn.execute("""
-                        SELECT image_data FROM laptop_images 
-                        WHERE laptop_id = ? 
-                        ORDER BY uploaded_date DESC LIMIT 1
-                    """, (laptop['id'],)).fetchone()
-                
-                # Add image data to laptop dict
-                if primary_image:
-                    import base64
-                    laptop_dict['image_data'] = base64.b64encode(primary_image['image_data']).decode('utf-8')
-                else:
-                    laptop_dict['image_data'] = None
-                    
-                cart_items.append(laptop_dict)
-                total_amount += laptop['price_to_sell']
+    for item in cart_items:
+        # Original laptop price
+        base_price = item['price_to_sell']
+        
+        # Get spare parts for this laptop
+        spareparts = conn.execute("""
+            SELECT cs.*, sp.part_type, sp.capacity, sp.price, sp.storage_type, sp.ram_type, sp.ram_speed
+            FROM cart_spareparts cs
+            JOIN spareparts sp ON cs.sparepart_id = sp.id
+            WHERE cs.session_id = ? AND cs.laptop_id = ?
+        """, (session['session_id'], item['laptop_id'])).fetchall()
+        
+        # Calculate upgrades value for this laptop
+        upgrades_value = sum(part['price'] * part['quantity'] for part in spareparts)
+        
+        cart_spareparts[item['laptop_id']] = {
+            'parts': spareparts,
+            'base_price': base_price,
+            'upgrades_value': upgrades_value,
+            'total_price': base_price + upgrades_value
+        }
+        
+        total_amount += base_price + upgrades_value
     
-    return render_template('cart.html', cart_items=cart_items, total_amount=total_amount)
-
+    return render_template("cart.html", 
+                         cart_items=cart_items, 
+                         cart_spareparts=cart_spareparts, 
+                         total_amount=total_amount)
+    
 @app.route("/checkout", methods=["GET", "POST"])
 def checkout():
     # No login required - collect guest info at checkout

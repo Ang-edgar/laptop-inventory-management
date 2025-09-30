@@ -2,17 +2,58 @@
 {% block title %}Laptop Details{% endblock %}
 {% block content %}
 <div class="header">
-    <!-- Update the header -->
     <h2>{{ laptop.laptop_name }} ({{ laptop.serial_number or laptop.id }})</h2>
 </div>
+
+<!-- Pricing Breakdown Card -->
 <div class="card" style="max-width: 600px; margin: 2rem auto;">
     <div class="card-header">
-        <h3>Specs</h3>
+        <h3><i class="fas fa-dollar-sign"></i> Pricing Breakdown</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+            <div>
+                <strong>Original Laptop Price:</strong><br>
+                <span style="color: #6b7280;">Base laptop without upgrades</span>
+            </div>
+            <div style="text-align: right;">
+                <strong style="font-size: 1.2rem; color: #4f46e5;">${{ "%.2f"|format(original_price) }}</strong>
+            </div>
+        </div>
+        
+        {% if upgrades_value > 0 %}
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding: 1rem; background: #ecfdf5; border-radius: 8px;">
+            <div>
+                <strong>Upgrades Value:</strong><br>
+                <span style="color: #6b7280;">Total spare parts added</span>
+            </div>
+            <div style="text-align: right;">
+                <strong style="font-size: 1.2rem; color: #059669;">+${{ "%.2f"|format(upgrades_value) }}</strong>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div style="display: flex; justify-content: space-between; padding: 1rem; background: #1e40af; color: white; border-radius: 8px; font-size: 1.1rem;">
+            <div>
+                <strong>Total Selling Price:</strong>
+            </div>
+            <div style="text-align: right;">
+                <strong style="font-size: 1.3rem;">${{ "%.2f"|format(laptop.price_to_sell) }}</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Specs Card -->
+<div class="card" style="max-width: 600px; margin: 2rem auto;">
+    <div class="card-header">
+        <h3>Specifications</h3>
     </div>
     <div class="card-body">
         <p><strong>CPU:</strong> {{ laptop.cpu }}</p>
         <p><strong>RAM:</strong> {{ laptop.ram }}</p>
         <p><strong>Storage:</strong> {{ laptop.storage }}</p>
+        <p><strong>OS:</strong> {{ laptop.os }}</p>
         
         <!-- Images Section -->
         <div class="form-group" style="margin:1rem 0;">
@@ -52,6 +93,8 @@
                         <th>Type</th>
                         <th>Specification</th>
                         <th>Capacity</th>
+                        <th>Price Added</th>
+                        <th>Date Added</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -72,9 +115,11 @@
                             {% endif %}
                         </td>
                         <td><strong>{{ part.capacity }}</strong></td>
+                        <td style="color: #059669; font-weight: bold;">${{ "%.2f"|format(part.price_at_time) }}</td>
+                        <td style="font-size: 0.9rem; color: #6b7280;">{{ part.installed_date[:10] }}</td>
                         <td>
                             <form method="post" action="{{ url_for('remove_sparepart_from_laptop', laptop_id=laptop.id, sparepart_id=part.id) }}" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-danger" title="Remove Part" onclick="return confirm('Are you sure you want to remove this spare part?')">
+                                <button type="submit" class="btn btn-sm btn-danger" title="Remove Part" onclick="return confirm('Are you sure you want to remove this spare part? This will reduce the laptop price by ${{ part.price_at_time }}.')">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
@@ -82,6 +127,13 @@
                     </tr>
                     {% endfor %}
                 </tbody>
+                <tfoot>
+                    <tr style="background: #f8f9fa; font-weight: bold;">
+                        <td colspan="3" style="text-align: right;">Total Upgrades Value:</td>
+                        <td style="color: #059669; font-size: 1.1rem;">${{ "%.2f"|format(upgrades_value) }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
         {% else %}
@@ -94,7 +146,7 @@
         
         <div style="margin-top: 1.5rem; text-align: center;">
             <a href="{{ url_for('add_sparepart_to_laptop', laptop_id=laptop.id) }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Add from Spare Parts
+                <i class="fas fa-plus"></i> Add Spare Part
             </a>
             <a href="{{ url_for('admin_panel') }}" class="btn btn-outline" style="margin-left: 1rem;">
                 <i class="fas fa-arrow-left"></i> Back to Inventory
